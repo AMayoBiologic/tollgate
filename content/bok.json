@@ -1,0 +1,83 @@
+{
+  "source": "https://iassc.org/body-of-knowledge/green-belt-body-of-knowledge/",
+  "phases": [
+    {"key": "Define", "code": "D", "sections": [
+      {"id": "1.1", "title": "The Basics of Six Sigma", "subtopics": [
+        "Meanings of Six Sigma", "General History of Six Sigma & Continuous Improvement", "Deliverables of a Lean Six Sigma Project",
+        "The Problem Solving Strategy Y = f(x)", "Voice of the Customer, Business and Employee", "Six Sigma Roles & Responsibilities"]},
+      {"id": "1.2", "title": "The Fundamentals of Six Sigma", "subtopics": [
+        "Defining a Process", "Critical to Quality Characteristics (CTQ's)", "Cost of Poor Quality (COPQ)",
+        "Pareto Analysis (80:20 rule)", "Basic Six Sigma Metrics (DPU, DPMO, FTY, RTY, Cycle Time)"]},
+      {"id": "1.3", "title": "Selecting Lean Six Sigma Projects", "subtopics": [
+        "Building a Business Case & Project Charter", "Developing Project Metrics", "Financial Evaluation & Benefits Capture"]},
+      {"id": "1.4", "title": "The Lean Enterprise", "subtopics": [
+        "Understanding Lean", "The History of Lean", "Lean & Six Sigma", "The Seven Elements of Waste",
+        "5S (Sort, Straighten, Shine, Standardize, Self-Discipline)"]}
+    ]},
+    {"key": "Measure", "code": "M", "sections": [
+      {"id": "2.1", "title": "Process Definition", "subtopics": [
+        "Cause & Effect / Fishbone Diagrams", "Process Mapping, SIPOC, Value Stream Map", "X-Y Diagram",
+        "Failure Modes & Effects Analysis (FMEA)"]},
+      {"id": "2.2", "title": "Six Sigma Statistics", "subtopics": [
+        "Basic Statistics", "Descriptive Statistics", "Normal Distributions & Normality", "Graphical Analysis"]},
+      {"id": "2.3", "title": "Measurement System Analysis", "subtopics": [
+        "Precision & Accuracy", "Bias, Linearity & Stability", "Gage Repeatability & Reproducibility", "Variable & Attribute MSA"]},
+      {"id": "2.4", "title": "Process Capability", "subtopics": [
+        "Capability Analysis", "Concept of Stability", "Attribute & Discrete Capability", "Monitoring Techniques"]}
+    ]},
+    {"key": "Analyse", "code": "A", "sections": [
+      {"id": "3.1", "title": "Patterns of Variation", "subtopics": ["Multi-Vari Analysis", "Classes of Distributions"]},
+      {"id": "3.2", "title": "Inferential Statistics", "subtopics": ["Understanding Inference", "Sampling Techniques & Uses", "Central Limit Theorem"]},
+      {"id": "3.3", "title": "Hypothesis Testing", "subtopics": [
+        "General Concepts & Goals of Hypothesis Testing", "Significance; Practical vs. Statistical", "Risk; Alpha & Beta", "Types of Hypothesis Test"]},
+      {"id": "3.4", "title": "Hypothesis Testing with Normal Data", "subtopics": ["1 & 2 sample t-tests", "1 sample variance", "One Way ANOVA"]},
+      {"id": "3.5", "title": "Hypothesis Testing with Non-Normal Data", "subtopics": [
+        "Mann-Whitney", "Kruskal-Wallis", "Mood's Median", "Friedman", "1 Sample Sign", "1 Sample Wilcoxon",
+        "One and Two Sample Proportion", "Chi-Squared (Contingency Tables)"]}
+    ]},
+    {"key": "Improve", "code": "I", "sections": [
+      {"id": "4.1", "title": "Simple Linear Regression", "subtopics": ["Correlation", "Regression Equations", "Residuals Analysis"]},
+      {"id": "4.2", "title": "Multiple Regression Analysis", "subtopics": [
+        "Non-Linear Regression", "Multiple Linear Regression", "Confidence & Prediction Intervals", "Residuals Analysis", "Data Transformation, Box Cox"]}
+    ]},
+    {"key": "Control", "code": "C", "sections": [
+      {"id": "5.1", "title": "Lean Controls", "subtopics": ["Control Methods for 5S", "Kanban", "Poka-Yoke (Mistake Proofing)"]},
+      {"id": "5.2", "title": "Statistical Process Control (SPC)", "subtopics": [
+        "Data Collection for SPC", "I-MR Chart", "Xbar-R Chart", "U Chart", "P Chart", "NP Chart", "Xbar-S Chart",
+        "CuSum Chart", "EWMA Chart", "Control Methods"]},
+      {"id": "5.3", "title": "Six Sigma Control Plans", "subtopics": ["Cost Benefit Analysis", "Elements of the Control Plan", "Elements of the Response Plan"]}
+    ]}
+  ],
+  "schedule": [
+    {"day": 1, "week": 1, "kind": "lesson", "phase": "Define", "title": "What Lean Six Sigma Is", "sections": ["1.1"]},
+    {"day": 2, "week": 1, "kind": "lesson", "phase": "Define", "title": "Lean and the Seven Wastes", "sections": ["1.4"]},
+    {"day": 3, "week": 1, "kind": "lesson", "phase": "Define", "title": "Variation, Metrics and the Cost of Poor Quality", "sections": ["1.2"]},
+    {"day": 4, "week": 1, "kind": "lesson", "phase": "Define", "title": "Customers, CTQs and the Project Charter", "sections": ["1.1", "1.2", "1.3"]},
+    {"day": 5, "week": 1, "kind": "lesson", "phase": "Define", "title": "SIPOC, Project Metrics and Benefits", "sections": ["1.2", "1.3", "2.1"]},
+    {"day": 6, "week": 2, "kind": "lesson", "phase": "Measure", "title": "Data Types and Sampling", "sections": ["2.2", "3.2"]},
+    {"day": 7, "week": 2, "kind": "lesson", "phase": "Measure", "title": "Describing Data with Numbers and Pictures", "sections": ["2.2"]},
+    {"day": 8, "week": 2, "kind": "lesson", "phase": "Measure", "title": "The Normal Distribution and Z-Scores", "sections": ["2.2"]},
+    {"day": 9, "week": 2, "kind": "lesson", "phase": "Measure", "title": "Process Maps and Value Stream Maps", "sections": ["2.1"]},
+    {"day": 10, "week": 2, "kind": "lesson", "phase": "Measure", "title": "Can You Trust Your Measurements? (MSA)", "sections": ["2.3"]},
+    {"day": 11, "week": 3, "kind": "lesson", "phase": "Measure", "title": "Process Capability", "sections": ["2.4"]},
+    {"day": 12, "week": 3, "kind": "lesson", "phase": "Measure", "title": "Capability Practice and Sigma Level", "sections": ["2.4", "1.2"]},
+    {"day": 13, "week": 3, "kind": "lesson", "phase": "Analyse", "title": "Finding Causes: Fishbone, X-Y Diagram and FMEA", "sections": ["2.1"]},
+    {"day": 14, "week": 3, "kind": "lesson", "phase": "Analyse", "title": "Inference and Hypothesis Testing Concepts", "sections": ["3.2", "3.3"]},
+    {"day": 15, "week": 3, "kind": "mock", "phase": "Analyse", "title": "Mid-Point Mock (50 Questions)", "mock": 50},
+    {"day": 16, "week": 4, "kind": "lesson", "phase": "Analyse", "title": "t-Tests and the 1-Sample Variance Test", "sections": ["3.4"]},
+    {"day": 17, "week": 4, "kind": "lesson", "phase": "Analyse", "title": "One-Way ANOVA", "sections": ["3.4"]},
+    {"day": 18, "week": 4, "kind": "lesson", "phase": "Analyse", "title": "Proportions and Chi-Square", "sections": ["3.5"]},
+    {"day": 19, "week": 4, "kind": "lesson", "phase": "Analyse", "title": "Tests for Non-Normal Data", "sections": ["3.5"]},
+    {"day": 20, "week": 4, "kind": "lesson", "phase": "Analyse", "title": "Multi-Vari and Classes of Distributions", "sections": ["3.1"]},
+    {"day": 21, "week": 5, "kind": "lesson", "phase": "Improve", "title": "Correlation and Simple Linear Regression", "sections": ["4.1"]},
+    {"day": 22, "week": 5, "kind": "lesson", "phase": "Improve", "title": "Multiple Regression, Intervals and Box-Cox", "sections": ["4.2"]},
+    {"day": 23, "week": 5, "kind": "lesson", "phase": "Control", "title": "Lean Controls: 5S, Kanban and Poka-Yoke", "sections": ["5.1"]},
+    {"day": 24, "week": 5, "kind": "lesson", "phase": "Control", "title": "Statistical Process Control", "sections": ["5.2"]},
+    {"day": 25, "week": 5, "kind": "lesson", "phase": "Control", "title": "Control Plans, Response Plans and Cost-Benefit", "sections": ["5.3"]},
+    {"day": 26, "week": 6, "kind": "mock", "phase": "Exam", "title": "Full Mock 1 (100 Questions)", "mock": 100},
+    {"day": 27, "week": 6, "kind": "review", "phase": "Exam", "title": "Weak-Section Review"},
+    {"day": 28, "week": 6, "kind": "mock", "phase": "Exam", "title": "Full Mock 2 (100 Questions)", "mock": 100},
+    {"day": 29, "week": 6, "kind": "review", "phase": "Exam", "title": "Revisit Queue Final Review"},
+    {"day": 30, "week": 6, "kind": "exam", "phase": "Exam", "title": "Exam Day"}
+  ]
+}
