@@ -229,3 +229,14 @@ def pce_pct(value_added_time, lead_time, nd=1): return _r(value_added_time / lea
 def little_law_lead_time(wip, exit_rate, nd=2): return _r(wip / exit_rate, nd)
 def oee_pct(availability, performance, quality, nd=1): return _r(availability * performance * quality * 100, nd)
 def rpn(severity, occurrence, detection, nd=0): return _r(severity * occurrence * detection, nd)
+
+# ---- classes of distributions (Day 20) ----
+def poisson_prob(lam, k, nd=4): return _r(stats.poisson.pmf(k, lam), nd)
+def poisson_prob_at_most(lam, k, nd=4): return _r(stats.poisson.cdf(k, lam), nd)
+def binomial_prob(n, p, k, nd=4): return _r(stats.binom.pmf(k, n, p), nd)
+def binomial_prob_at_most(n, p, k, nd=4): return _r(stats.binom.cdf(k, n, p), nd)
+def binomial_mean(n, p, nd=2): return _r(n * p, nd)
+def binomial_sd(n, p, nd=2): return _r(math.sqrt(n * p * (1 - p)), nd)
+def exponential_mean(rate, nd=2): return _r(1 / rate, nd)
+def exponential_survival(rate, t, nd=4): return _r(math.exp(-rate * t), nd)
+def exponential_median(rate, nd=2): return _r(math.log(2) / rate, nd)
