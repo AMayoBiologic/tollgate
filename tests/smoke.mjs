@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
-const file = 'file://' + process.cwd() + '/dist/index.html';
+const file = process.env.TOLLGATE_URL || ('file://' + process.cwd() + '/dist/index.html');
 const browser = await chromium.launch();
 const errors = [];
 async function run(width, height, tag) {
@@ -31,7 +31,7 @@ async function run(width, height, tag) {
   await page.click('text=Start drill'); await page.waitForTimeout(200); await shot('drill');
   await page.keyboard.press('1'); await page.waitForTimeout(100); await shot('drill-answered');
   // partial mock
-  await goto('#practice'); await page.click('text=Partial mock'); await page.waitForTimeout(300); await shot('mock');
+  await goto('#practice'); const partial = await page.$('text=Partial mock'); await (partial ? partial.click() : page.click('text=Half mock')); await page.waitForTimeout(300); await shot('mock');
   const n = await page.evaluate(() => JSON.parse(localStorage.getItem('tollgate.v1')).active.order.length);
   for (let i = 0; i < n; i++) { await page.keyboard.press(String(1 + (i % 4))); if (i === 2) await page.keyboard.press('f'); await page.keyboard.press('n'); }
   await page.waitForTimeout(100); await shot('mock-last');
