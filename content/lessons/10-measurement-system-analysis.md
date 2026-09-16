@@ -96,7 +96,7 @@ Software also reports **kappa**, a statistic that corrects the agreement rate fo
 
 ## Worked Example
 
-A machine shop measures a shaft diameter with a digital micrometer. Tolerance 9.75 mm to 10.25 mm (width 0.50 mm). Three operators each measure ten shafts three times. The software reports standard deviations:
+A machine shop measures a shaft diameter with a digital micrometer. Tolerance 9.5 mm to 10.5 mm (width 1.0 mm). Three operators each measure ten shafts three times. The software reports standard deviations:
 
 ```
 Gage R&R Study
@@ -111,13 +111,13 @@ Total Variation      0.0930
 1. **Confirm GRR.** √(0.0200² + 0.0120²) = √(0.000400 + 0.000144) = √0.000544 = 0.0233 mm.
 2. **Confirm total variation.** √(0.0233² + 0.0900²) = √(0.000543 + 0.008100) = √0.008643 = 0.0930 mm.
 3. **Percent study variation.** 0.0233 ÷ 0.0930 × 100 = 25.1%. Marginal (10% to 30%).
-4. **Percent tolerance.** 6 × 0.0233 ÷ 0.50 × 100 = 0.1398 ÷ 0.50 × 100 = 28.0%. Also marginal.
+4. **Percent tolerance.** 6 × 0.0233 ÷ 1.0 × 100 = 0.1398 ÷ 1.0 × 100 = 14.0%. Marginal.
 5. **Number of distinct categories.** 1.41 × 0.0900 ÷ 0.0233 = 5.4, rounded down to 5. Acceptable, with no margin.
 6. **Percent contribution** (for recognition): (0.0233 ÷ 0.0930)² × 100 = 6.3%. Marginal on the 1%–9% scale, consistent with step 3.
 7. **Diagnosis.** Repeatability (0.0200) is larger than reproducibility (0.0120), so most of the measurement noise is the micrometer itself, not the operators. Checking the fixture and the resolution comes before retraining.
 8. **Decision.** The gauge is usable for the project with caution: the data will carry about 25% measurement noise. Because the project's Y is the diameter itself, the team fixes the fixturing and repeats the study before the capability analysis on Day 11.
 
-A bias check on the same micrometer: a certified 10.000 mm reference pin measured 15 times averages 10.006 mm. Bias = +0.006 mm, which is 0.006 ÷ 0.50 × 100 = 1.2% of tolerance, well under the 10% rule. The micrometer is accurate enough, and its problem is precision.
+A bias check on the same micrometer: a certified 10.000 mm reference pin measured 15 times averages 10.006 mm. Bias = +0.006 mm, which is 0.006 ÷ 1.0 × 100 = 0.6% of tolerance, well under the 10% rule. The micrometer is accurate enough, and its problem is precision.
 
 An attribute check on the shop's visual inspection: 50 shafts of known status, two inspectors, two assessments each. Inspector A matched the standard on 87 of 100 assessments (87%); Inspector B on 84 of 100 (84%). Kappa for agreement with the standard: 0.72 for A and 0.66 for B. B's agreement is below the 0.7 line, so the team writes reference photographs of each defect type and retrains before using visual inspection data.
 

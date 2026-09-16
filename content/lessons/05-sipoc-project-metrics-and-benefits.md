@@ -84,7 +84,7 @@ The invoice team from Day 3 is preparing the Define tollgate. Their Green Belt c
 
 2. **Primary metric.** Percentage of invoices with at least one error, measured by the monthly check of a 500-invoice sample, using the operational definition "an error is any field that the customer's accounts payable team would reject or that requires a credit note". Baseline from the last six months: 9.0%.
 
-3. **Secondary and consequential metrics.** Secondary: percentage of orders arriving with a valid purchase order number (baseline 71%). Consequential: invoice lead time from order receipt to invoice issue (baseline 2.3 days), and checking hours per month (baseline 4 hours).
+3. **Secondary and consequential metrics.** Secondary: percentage of orders arriving with a valid purchase order number (baseline 71%). Consequential: invoice lead time from order receipt to invoice issue (baseline 2.3 days), and order-entry overtime hours per month (baseline about 100 hours).
 
 4. **Target and gap.** Goal statement: 9.0% to 3.0%. On 3 000 invoices a month, 9.0% is 270 defective invoices and 3.0% is 90, a reduction of 180 a month.
 
