@@ -41,7 +41,7 @@ A project needs a small set of numbers that say whether it is working. Day 4 tur
 IASSC names two further classes of project metric.
 
 - **Secondary metrics** are the process measures (x's) and related outputs the team expects to move along with the primary metric and that help explain why it moved. The percentage of orders received with a valid purchase order number is a secondary metric for an invoice error project.
-- **Consequential metrics** (also called guard-rail metrics) protect against fixing one thing by breaking another. If the primary metric is invoice error rate, a consequential metric is invoice cycle time, because the easiest way to cut errors is to check everything twice and slow the process down. Cost per invoice and staff overtime are other candidates. A consequential metric must not get worse while the primary metric improves.
+- **Consequential metrics** (also called guard-rail metrics) protect against fixing one thing by breaking another. If the primary metric is invoice error rate, a consequential metric is invoice lead time (order receipt to invoice issue), because the easiest way to cut errors is to check everything twice and slow the process down. Cost per invoice and staff overtime are other candidates. A consequential metric must not get worse while the primary metric improves.
 
 Each metric needs the operational definition from Day 4, a **baseline** (its value now, measured over a long enough period to capture normal variation, typically three to twelve months of historical data) and a **target** (the value in the goal statement). The gap between baseline and target, converted into money, is the project's benefit. Baselines come from Measure; the Define phase records the best available historical figure and flags it as provisional.
 
@@ -84,7 +84,7 @@ The invoice team from Day 3 is preparing the Define tollgate. Their Green Belt c
 
 2. **Primary metric.** Percentage of invoices with at least one error, measured by the monthly check of a 500-invoice sample, using the operational definition "an error is any field that the customer's accounts payable team would reject or that requires a credit note". Baseline from the last six months: 9.0%.
 
-3. **Secondary and consequential metrics.** Secondary: percentage of orders arriving with a valid purchase order number (baseline 71%). Consequential: invoice cycle time from order receipt to invoice issue (baseline 2.3 days), and checking hours per month (baseline 4 hours).
+3. **Secondary and consequential metrics.** Secondary: percentage of orders arriving with a valid purchase order number (baseline 71%). Consequential: invoice lead time from order receipt to invoice issue (baseline 2.3 days), and checking hours per month (baseline 4 hours).
 
 4. **Target and gap.** Goal statement: 9.0% to 3.0%. On 3 000 invoices a month, 9.0% is 270 defective invoices and 3.0% is 90, a reduction of 180 a month.
 
