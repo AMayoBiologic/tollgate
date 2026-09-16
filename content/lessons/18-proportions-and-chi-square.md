@@ -96,7 +96,7 @@ p = 0.013 < 0.05: reject independence. Invoice status is associated with order s
 
 The invoice team tests two x's from its Day 13 short list with attribute data from three months of records.
 
-**Part A: has the error rate moved?** The charter baseline is 9%. In the latest 300-invoice sample, 45 invoices had at least one error.
+**Part A: has the error rate moved?** The charter baseline is 9%. The team has cut the monthly check from 500 invoices to a random 300 to save checking time. In the latest 300-invoice sample, 45 invoices had at least one error.
 
 1. p̂ = 45 ÷ 300 = 0.15. H₀: p = 0.09; H₁: p ≠ 0.09; α = 0.05.
 2. Check: 300 × 0.09 = 27 and 300 × 0.91 = 273, both above 5.
