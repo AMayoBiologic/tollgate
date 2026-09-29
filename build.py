@@ -222,4 +222,7 @@ js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</scri
 out = tpl.replace("/*__DATA__*/null", js).replace("/*__APP__*/", (ROOT / "app/app.js").read_text().replace("</script", "<\\/script"))
 (ROOT / "dist").mkdir(exist_ok=True)
 (ROOT / "dist/index.html").write_text(out)
+import shutil
+if (ROOT / "games").is_dir():
+    shutil.copytree(ROOT / "games", ROOT / "dist/games", dirs_exist_ok=True)
 print(f"\nBuilt dist/index.html ({len(out)/1024:.0f} KB)")
