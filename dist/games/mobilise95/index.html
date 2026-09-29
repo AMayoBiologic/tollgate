@@ -41,7 +41,7 @@ p{margin:0 0 10px;max-width:60ch}
 .btn.big{font-family:var(--font-head);font-size:12px;padding:12px 18px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .stack{display:grid;gap:8px}
-.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;font-size:20px}
+.hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;font-size:20px}
 .hud div{border:1px dashed rgba(255,255,255,.35);padding:4px 8px;font-variant-numeric:tabular-nums}
 .hud b{display:block;font-family:var(--font-head);font-size:9px;color:var(--sky);margin-bottom:4px}
 .bar{height:12px;background:#000;border:1px solid var(--screen-fg);margin-top:4px}
@@ -49,6 +49,7 @@ p{margin:0 0 10px;max-width:60ch}
 .tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .tasks .btn{white-space:normal;line-height:1.1}
 .tasks .btn.done{color:var(--win-dark);text-decoration:line-through}
+.tasks .btn.skip{color:var(--red);text-decoration:line-through}
 .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .card{display:grid;justify-items:center;gap:4px;padding:8px 4px;text-align:center}
 canvas{width:96px;height:96px;image-rendering:pixelated;max-width:100%}
@@ -304,7 +305,7 @@ const INTERRUPTS=[
 ];
 
 // ---------- state ----------
-const START={days:7,budget:6000,morale:70,done:{},log:[],used:{},screen:'title'};
+const START={days:10,budget:6000,morale:70,done:{},log:[],used:{},screen:'title'};
 let S=null;
 const $=(s)=>document.querySelector(s);
 const screen=$('#screen');
@@ -325,12 +326,12 @@ function title(){S.screen='title';screen.innerHTML=`
  <h1>MOBILISE! '95</h1>
  <h2>The Field Team Deployment Simulator</h2>
  <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">${HOST.name}<br>${HOST.role}</div></div>
-  <div class="bub">G'day. You're the new Mobilisation Coordinator. Five field staff, eight things to get done, seven days till they fly out. Simple. <br><br>They will not make it simple.</div></div>
- <p class="fine" style="margin-top:14px">Pick a task, pick a person. They'll have an excuse. You choose how to deal with it. Every choice costs days, dollars or goodwill. Get everything done before the plane leaves.</p>
+  <div class="bub">G'day. You're the new Mobilisation Coordinator. Five field staff, eight things to get done, ten days till they fly out. Then five days on site. Simple. <br><br>They will not make it simple.</div></div>
+ <p class="fine" style="margin-top:14px">Pick a task, pick a person. They'll have an excuse. You choose how to deal with it. Get 75% ready and you fly. On site it's two jobs a day, five days, and whatever the Pilbara throws at you.</p>
  <div class="row"><button class="btn big" id="start">▶ NEW GAME</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>`;
  portrait($('#hostcv'),HOST.face);
  $('#start').onclick=()=>{sfx.click();S={...JSON.parse(JSON.stringify(START))};S.screen='intro';intro()};
- const c=$('#cont');if(c)c.onclick=()=>{sfx.click();try{S=JSON.parse(localStorage.getItem('mob95'))}catch(e){}plan()};
+ const c=$('#cont');if(c)c.onclick=()=>{sfx.click();try{S=JSON.parse(localStorage.getItem('mob95'))}catch(e){}resume()};
  $('#mute').onclick=(e)=>{muted=!muted;e.target.textContent='Sound: '+(muted?'OFF':'ON')};
  status('Insert disc and click NEW GAME.')}
 function loadable(){try{const s=JSON.parse(localStorage.getItem('mob95'));return s&&s.screen&&s.screen!=='title'&&s.screen!=='end'}catch(e){return false}}
@@ -338,7 +339,7 @@ function loadable(){try{const s=JSON.parse(localStorage.getItem('mob95'));return
 function plan(){S.screen='plan';save();
  if(S.days<=0||readiness()===100)return end();
  if(interrupt())return;
- screen.innerHTML=`${hud()}<h2>Day ${8-S.days} of 7 — Readiness ${readiness()}%</h2>
+ screen.innerHTML=`${hud()}<h2>Day ${11-S.days} of 10 — Readiness ${readiness()}%</h2>
  <p>Pick a task to assign.</p>
  <div class="tasks">${TASKS.map(t=>`<button class="btn ${S.done[t.id]?'done':''}" data-t="${t.id}" ${S.done[t.id]?'disabled':''}>${S.done[t.id]?'✔ ':'▢ '}${t.name}<br><span class="fine">$${t.cost}</span></button>`).join('')}</div>
  <div class="log">${S.log.slice(-4).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`;
@@ -370,8 +371,8 @@ function disc2(){if(S.screen!=='intro')return;sfx.bad();
  status('Disc error.')}
 
 // ---------- interruptions: one chance per day, days 2-5 ----------
-function interrupt(){const day=8-S.days;S.intDays=S.intDays||[];S.usedInt=S.usedInt||[];
- if(day<2||day>6||S.intDays.includes(day))return false;S.intDays.push(day);
+function interrupt(){const day=11-S.days;S.intDays=S.intDays||[];S.usedInt=S.usedInt||[];
+ if(day<2||day>8||S.intDays.includes(day))return false;S.intDays.push(day);
  if(Math.random()>0.45)return false;
  let avail=INTERRUPTS.map((e,i)=>i).filter(i=>!S.usedInt.includes(i));if(!avail.length)return false;
  const ei=avail[Math.floor(Math.random()*avail.length)];S.usedInt.push(ei);const ev=INTERRUPTS[ei];S.screen='interrupt';S.curI=ei;save();sfx.ring();
@@ -416,6 +417,7 @@ function resolve(tid,cid,ev,o){const t=TASKS.find(x=>x.id===tid),c=CREW.find(x=>
  $('#next').onclick=()=>{sfx.click();plan()}}
 
 function end(){S.screen='end';save();const r=readiness(),bust=S.budget<0;
+ if(S.phase!=='field'&&r>=75)return fieldBrief();
  let title,body,stars;
  if(r===100&&!bust){title='WHEELS UP';body='Everything done, on budget, on time. Nobody at head office will notice. That is the job.';stars=5}
  else if(r===100){title='WHEELS UP (SORT OF)';body=`Everything done, but you're $${(-S.budget).toLocaleString()} over. Finance have booked a "quick chat".`;stars=4}
@@ -434,10 +436,224 @@ function end(){S.screen='end';save();const r=readiness(),bust=S.budget<0;
  $('#again').onclick=()=>{sfx.click();S=JSON.parse(JSON.stringify(START));S.screen='plan';plan()};
  status('Game over.')}
 
+// ================= FIELD PHASE =================
+const FDAYS=[
+ {tasks:[{id:'gate',n:'Gate induction & prestart'},{id:'camp',n:'Camp check-in & comms test'}]},
+ {tasks:[{id:'traps',n:'Open trap lines'},{id:'quad',n:'Vegetation quadrats'}]},
+ {tasks:[{id:'check',n:'Trap check & processing'},{id:'bats',n:'Deploy bat detectors'}]},
+ {tasks:[{id:'seed',n:'Seed collection'},{id:'upload',n:'Data upload & backup'}]},
+ {tasks:[{id:'close',n:'Close traps & pack camp'},{id:'client',n:'Client close-out meeting'}]},
+];
+const FIELD_EVENTS={
+ rusty:[
+  {t:"Prestart? Mate, I've been on this site since before it had a gate. I'll sign the sheet, you do the talking.",
+   o:[{l:"He runs it. Properly.",r:"He runs it. It's actually good. Includes a story about a 2009 camel. Done.",done:1,m:5},
+      {l:"You run it, he signs.",r:"Done. He signs as 'R'.",done:1,m:0},
+      {l:"Skip it, just this once.",r:"Client rep walks past at exactly that moment. Not done. Noted.",done:0,m:-5,data:-5}]},
+  {t:"Trap lines are open. I've put them where they were in 2016. The site's put a laydown yard on top of line 3, but the traps are still technically under it.",
+   o:[{l:"Move line 3.",r:"Moved by lunch. Done.",done:1,m:-5},
+      {l:"Leave it. Nobody checks line 3.",r:"Someone checks line 3. A forklift. Not done.",done:0,data:-10},
+      {l:"Ask the site to move the laydown yard.",r:"They laugh. Then they move it. Rusty is a legend here. Done.",done:1,m:10}]},
+  {t:"Client's close-out? I told them everything at the pub last night. They've got the gist.",
+   o:[{l:"Do the meeting anyway.",r:"Done. The client had a different gist.",done:1,m:0},
+      {l:"Ask what he told them.",r:"He told them about the camel. Meeting still needed. Done, late.",done:1,m:0},
+      {l:"Trust the pub.",r:"Client emails head office asking for 'the actual results'. Not done.",done:0,data:-10}]}],
+ brooke:[
+  {t:"I've done the comms test. Sat phone, UHF, PLB test mode, and I've also rung head office, my mum, and the camp kitchen to confirm dinner. All working.",
+   o:[{l:"Good. Done.",r:"Done. Dinner is chicken.",done:1,m:5},
+      {l:"Ask her to stop ringing people.",r:"She rings one more person to tell them she's stopping. Done.",done:1,m:0},
+      {l:"Ask about the PLB test.",r:"Test mode. She's certain. She shows you a laminated card. Done.",done:1,m:5}]},
+  {t:"Quadrats are done but I've recorded every plant to subspecies and it's taken all day and I've done two of the twelve.",
+   o:[{l:"Species level from here. Ten to go.",r:"She grieves briefly. Done by dark.",done:1,m:-5},
+      {l:"Pair her with Priya.",r:"Priya also wants subspecies. Four done. Not done.",done:0,m:10,data:-5},
+      {l:"Let her keep going, drop the count to eight.",r:"Eight beautiful quadrats. The client wanted twelve. Done, sort of.",done:1,data:-5,m:5}]},
+  {t:"Data's uploaded. Also I built a dashboard. Also I've found a discrepancy in the 2016 data and I've emailed the client about it. Directly. From my phone.",
+   o:[{l:"Upload is done. Call the client and manage the email.",r:"Client is fine, curious even. Done.",done:1,m:0},
+      {l:"Ask her to always route client contact through you.",r:"She writes it on her hand. Done.",done:1,m:-5},
+      {l:"Look at the dashboard.",r:"It's good. It's really good. An hour passes. Done anyway.",done:1,m:10}]}],
+ dazza:[
+  {t:"Camp check-in's sorted. Slight thing. They had us down as a drilling crew so we're in the drillers' dongas. The drillers are also in the drillers' dongas.",
+   o:[{l:"Sort it with the camp manager.",r:"Rooms sorted by 9pm. Done.",done:1,m:0},
+      {l:"Share with the drillers.",r:"Done. Nobody sleeps. Drillers are up at 4.",done:1,m:-15},
+      {l:"Swags at the trap site.",r:"Actually lovely. Dazza cooks. Done.",done:1,m:10}]},
+  {t:"Bat detectors are out. I put them all on the one tree so they'd be easy to collect.",
+   o:[{l:"Redistribute them before dark.",r:"Done, with a torch. He's apologetic.",done:1,m:0},
+      {l:"Leave them.",r:"One tree's worth of bats. Very well recorded. Not done.",done:0,data:-10},
+      {l:"Send him with Priya and a map.",r:"Done. Priya finds a roost on the way. Bonus data.",done:1,data:5,m:5}]},
+  {t:"Packing camp. I've packed the ute. I've packed it so well I can't find the keys. They're in the ute. Somewhere.",
+   o:[{l:"Unpack it.",r:"Keys were in the esky. Done, two hours late.",done:1,m:-5},
+      {l:"Spare key from the depot, via Marcus.",r:"Marcus doesn't answer. Unpack it anyway. Done.",done:1,m:-5},
+      {l:"Check his pockets.",r:"Keys were in his pocket. Done.",done:1,m:0}]}],
+ priya:[
+  {t:"Trap check took a while. Every trap had something. I've named them. All of them. I have a spreadsheet of names.",
+   o:[{l:"Great. Process and release.",r:"Done. Kevin (a Pseudomys) is released last.",done:1,m:5},
+      {l:"Ask her not to name them.",r:"She names them quietly. Done.",done:1,m:-5},
+      {l:"Ask to see the spreadsheet.",r:"It has a column for personality. Half a day. Done.",done:1,m:5,data:-5}]},
+  {t:"Seed collection's going well but I've found a population of something that isn't in the flora and I'd like to stay here for the rest of the trip.",
+   o:[{l:"Collect the seed. Flag the find for the client.",r:"Done. The client is thrilled and slightly alarmed.",done:1,data:5,m:5},
+      {l:"Let her stay.",r:"Seed not collected. Something excellent is described. Not done.",done:0,data:-10,m:15},
+      {l:"Photos and GPS, then move on.",r:"Done. She looks back at it the whole drive.",done:1,m:0}]},
+  {t:"I'll be at the close-out, but I've prepared a 40-slide deck on the invertebrate fauna. The client asked about tenure and haul roads.",
+   o:[{l:"Three slides. Fauna summary only.",r:"Done. Slide 3 has a beetle on it anyway.",done:1,m:-5},
+      {l:"Let her present all 40.",r:"Client leaves at slide 22. Not done.",done:0,data:-5,m:5},
+      {l:"You present. She takes questions.",r:"Done. The only question is about the beetle.",done:1,m:5}]}],
+ marcus:[
+  {t:"[Marcus is at the gate. He has no induction card. He says it's 'in the other ute'.]",
+   o:[{l:"Get him re-inducted at the gate.",r:"Two hours. Done.",done:1,m:0},
+      {l:"Send him back to camp for the day.",r:"He spends the day fishing. Not done.",done:0,data:-5,m:5},
+      {l:"Ring the site admin you owe a favour to.",r:"Done in 20 minutes. You now owe two favours.",done:1,m:0}]},
+  {t:"Marcus did the quadrats. The datasheets are complete. They are also completely dry, folded into quarters, and one has a fishing lure through it.",
+   o:[{l:"Transcribe them tonight.",r:"Done. The lure was a Halco.",done:1,m:-5},
+      {l:"Send him back out to redo them digitally.",r:"He redoes them. On paper. Done, eventually.",done:1,m:0},
+      {l:"Accept the sheets as they are.",r:"Data entry finds 'fish?' in the species column. Not done.",done:0,data:-10}]},
+  {t:"Marcus was meant to close the traps. Marcus has closed the traps. The traps were not the traps. He's closed a neighbouring consultancy's traps.",
+   o:[{l:"Apologise to the neighbours, reopen theirs, close ours.",r:"Done. They are professional about it. Very professional.",done:1,m:-5},
+      {l:"Close ours, say nothing.",r:"Done. Their trip goes badly. You hear about it later.",done:1,m:-10},
+      {l:"Send Marcus to apologise.",r:"He brings them fish. Everyone's fine. Done.",done:1,m:10}]}],
+};
+const INCIDENTS=[
+ {t:"Dazza's found a snake in his swag. Dazza is now on the roof of the ute. The snake is in the swag.",
+  o:[{l:"Rusty relocates it.",r:"Mulga. Relocated. Dazza sleeps in the ute.",m:-5},
+     {l:"Nobody touches it. Wait.",r:"Snake leaves at 3am. Nobody sleeps.",m:-15},
+     {l:"Ring the site's snake handler.",r:"$300 call-out. Handler is Rusty's cousin.",c:300,m:0}]},
+ {t:"Ute's bogged in a creek crossing that was dry on the map. Water is at the doors. Priya is photographing a frog.",
+  o:[{l:"Winch out with the second vehicle.",r:"Out in an hour. Frog is a new record.",m:5,data:5},
+     {l:"Wait for the site's recovery crew.",r:"Four hours. $900. They are not kind about it.",c:900,m:-10,inc:1},
+     {l:"Dig.",r:"Three hours of digging. Out. Everyone hates you.",m:-15}]},
+ {t:"2pm, 44°C. Brooke has gone quiet and pale and says she's 'totally fine'.",req:'med',
+  o:[{l:"Stop work. Shade, water, rest. Log it.",r:"She's OK by 5. Logged as heat illness, no treatment. The right call.",m:5,inc:1},
+     {l:"Push on, it's only an hour.",r:"She goes down. Medic. Day lost. Recordable.",m:-20,data:-10,inc:1,c:400},
+     {l:"Send her to the site medic now.",r:"IV fluids. She's fine tomorrow. Recordable, but handled.",m:0,inc:1}]},
+ {t:"You missed the 6pm check-in. Head office has started the IMP call tree. Your mum has been rung.",req:'sat',
+  o:[{l:"Ring in immediately, apologise, explain.",r:"Stood down. Colin is calm. Colin is always calm.",m:0},
+     {l:"Blame the sat phone.",r:"Head office pulls the logs. It wasn't the sat phone. Awkward.",m:-10},
+     {l:"Let it run and see what happens.",r:"A helicopter is quoted. You ring in. $1,200 cancellation.",c:1200,m:-10,inc:1}]},
+ {t:"Rusty took 'the old track' back to camp. The old track is now inside a blast exclusion zone. Site security has a video.",
+  o:[{l:"Own it. Report it before they do.",r:"Rusty gets a talking-to and a re-induction. Recordable, but respected.",inc:1,m:-5},
+     {l:"Say nothing.",r:"They already know. Rusty is removed from site. Down a person.",inc:1,m:-20,data:-15},
+     {l:"Argue the zone wasn't signed.",r:"It was. There's a photo of Rusty next to the sign.",inc:1,m:-10}]},
+ {t:"Priya has found a threatened species. Right where the client's new haul road goes. The client rep is standing next to her.",
+  o:[{l:"Record it properly, tell the client straight.",r:"Client is unhappy but the data's clean. That's the job.",data:10,m:5},
+     {l:"Ask Priya to 'double check' quietly.",r:"Priya does not do quiet. She double-checks loudly. Client hears.",data:5,m:-10},
+     {l:"Let the client rep talk to Priya alone.",r:"He tries to talk her out of it. She recites the Act. Data stands.",data:10,m:10}]},
+ {t:"Camp kitchen served 'chicken surprise'. Three of the team are down with gastro. Marcus, who ate four plates, is fine.",
+  o:[{l:"Rest day for the sick. Marcus and you cover.",r:"Half a day's data. Everyone recovers.",data:-10,m:0},
+     {l:"Push everyone out.",r:"Two of them end up at the site medic. Recordable.",inc:1,data:-15,m:-20},
+     {l:"Report it to the camp.",r:"Camp shrugs. The sick recover. The chicken remains a surprise.",data:-10,m:5}]},
+ {t:"Total fire ban declared. No generators, no hot work, no vehicles off formed roads. The bat detectors are 3 km off the formed road.",
+  o:[{l:"Walk in.",r:"6 km round trip, 41°C. Detectors retrieved. Everyone's shattered.",m:-10},
+     {l:"Leave them a day.",r:"A day's bat data lost. Nobody's hurt.",data:-10},
+     {l:"Drive in anyway, carefully.",r:"Site vehicle tracker. Site rings. Recordable.",inc:1,m:-10}]},
+ {t:"The client rep has decided to 'tag along' for the day in his own ute. He does not have a UHF. He is now lost.",
+  o:[{l:"Stop work. Find him.",r:"Found at a lookout, taking photos. Two hours gone.",data:-5,m:0},
+     {l:"Ring site security.",r:"They find him in ten minutes. He's embarrassed. He's your friend now.",m:5},
+     {l:"Keep working, he'll turn up.",r:"He turns up at camp at dusk having reported himself missing. Your name is on the report.",inc:1,m:-10}]},
+ {t:"Marcus is gone. Nobody saw him leave. His swag is here, his ute is here, his rod is not.",
+  o:[{l:"Search the creek line first.",r:"He's at the waterhole. He's got three cobbler. He's confused why you're upset.",m:0},
+     {l:"Start the missing-person procedure.",r:"Correct call. He walks back in as you dial. Log it anyway.",inc:1,m:-5},
+     {l:"Wait till dark.",r:"He's back at dusk with fish. You've aged.",m:-10}]},
+ {t:"Dust storm. Visibility ten metres. The bat detectors are now under a small dune. The datasheets were on the bonnet.",
+  o:[{l:"Everyone in the ute. Wait it out.",r:"An hour. Datasheets gone. Detectors dug out.",data:-10},
+     {l:"Grab the datasheets first.",r:"Dazza gets them. Dazza gets a face full of dust. Sheets saved.",m:-5,data:0},
+     {l:"Keep working.",r:"Priya walks into a fence. Recordable. Sheets gone.",inc:1,data:-10,m:-10}]},
+ {t:"Site security at the trap line: 'Your bloke's not wearing long sleeves or glasses.' Your bloke is Dazza. He is wearing a singlet.",req:'ppe',
+  o:[{l:"Send him to camp for the day.",r:"Half a day's data. Lesson learned, maybe.",data:-5,m:-5},
+     {l:"Argue.",r:"Team escorted off site till tomorrow. Everything lost today.",data:-15,m:-10,inc:1},
+     {l:"Give him your shirt.",r:"You're now in a singlet. Security lets it go. Done.",m:10}]},
+ {t:"Rusty has caught, and is currently holding, a large perentie. It has bitten him. He says it's fine. It's bleeding quite a lot.",
+  o:[{l:"First aid, site medic, log it.",r:"Four stitches. Recordable. He's proud of it.",inc:1,m:0},
+     {l:"Let him wrap it himself.",r:"Infected by day 4. Medivac to Newman. Recordable.",inc:1,c:2000,m:-15,data:-10},
+     {l:"Ask why he picked it up.",r:"'Because it was there.' Medic. Recordable.",inc:1,m:0}]},
+];
+
+function fieldBrief(){S.phase='field';S.fday=1;S.fdone={};S.data=0;S.inc=0;S.fused={};S.usedInc=[];S.mobReady=readiness();S.screen='fbrief';save();sfx.good();
+ const missed=TASKS.filter(t=>!S.done[t.id]).map(t=>t.name);
+ screen.innerHTML=`<h1 style="font-size:16px">WHEELS UP</h1><h2>Readiness ${S.mobReady}% · Budget $${S.budget.toLocaleString()} · Morale ${S.morale}%</h2>
+ <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">${HOST.name}</div></div><div class="bub">The plane left. That's the easy part done.<br><br>Five days on site. Two jobs a day. Same crew, same excuses, worse weather.${missed.length?`<br><br>You flew without: <b>${esc(missed.join(', '))}</b>. That will come up.`:'<br><br>You flew with everything. That has never happened before.'}</div></div>
+ <div class="row" style="margin-top:14px"><button class="btn big" id="go">▶ DAY 1</button></div>`;
+ portrait($('#hostcv'),HOST.face);$('#go').onclick=()=>{sfx.click();fplan()};status('In the field.')}
+
+function fhud(){return `<div class="hud">
+ <div><b>Field day</b>${S.fday} / 5</div>
+ <div><b>Data</b>${S.data}%<div class="bar"><i style="width:${Math.max(0,Math.min(100,S.data))}%"></i></div></div>
+ <div><b>Incidents</b>${S.inc} ${S.inc>=3?'<span class="blink" style="color:var(--red)">!</span>':''}</div>
+ <div><b>Budget</b>$${S.budget.toLocaleString()}</div>
+ <div><b>Morale</b>${S.morale}%<div class="bar"><i style="width:${Math.max(0,Math.min(100,S.morale))}%"></i></div></div>
+</div>`}
+
+function fplan(){S.screen='fplan';save();
+ if(S.fday>5)return fend();
+ const day=FDAYS[S.fday-1];const open=day.tasks.filter(t=>!S.fdone[S.fday+t.id]&&!S.fskip?.[S.fday+t.id]);
+ if(!open.length){if(!S.incDay?.[S.fday]&&fincident())return; S.fday++;return fplan()}
+ screen.innerHTML=`${fhud()}<h2>Field day ${S.fday} — pick a job</h2>
+ <div class="tasks">${day.tasks.map(t=>{const k=S.fday+t.id;const st=S.fdone[k]?'done':(S.fskip?.[k]?'skip':'');return `<button class="btn ${st}" data-t="${t.id}" ${st?'disabled':''}>${S.fdone[k]?'✔ ':S.fskip?.[k]?'✘ ':'▢ '}${t.n}<br><span class="fine">10% data</span></button>`}).join('')}</div>
+ <div class="log">${S.log.slice(-4).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`;
+ screen.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{sfx.click();fpick(b.dataset.t)});
+ status(`Day ${S.fday}. ${open.length} job${open.length===1?'':'s'} left today.`)}
+
+function fpick(tid){const t=FDAYS[S.fday-1].tasks.find(x=>x.id===tid);S.screen='fpick';S.cur=tid;save();
+ screen.innerHTML=`${fhud()}<h2>${t.n}</h2><p>Who's on it?</p>
+ <div class="crew">${CREW.map(c=>`<button class="btn card" data-c="${c.id}"><canvas id="cv-${c.id}"></canvas><span>${c.name}</span><span class="fine">${c.role}</span></button>`).join('')}</div>
+ <div class="row" style="margin-top:12px"><button class="btn" id="back">◀ Back</button></div>`;
+ CREW.forEach(c=>{portrait($('#cv-'+c.id),c.face);$(`[data-c=${c.id}]`).onclick=()=>{sfx.click();fassign(tid,c.id)}});
+ $('#back').onclick=()=>{sfx.click();fplan()}}
+
+function fassign(tid,cid){const c=CREW.find(x=>x.id===cid),t=FDAYS[S.fday-1].tasks.find(x=>x.id===tid);
+ const pool=FIELD_EVENTS[cid];S.fused[cid]=S.fused[cid]||[];
+ let avail=pool.map((e,i)=>i).filter(i=>!S.fused[cid].includes(i));if(!avail.length){S.fused[cid]=[];avail=pool.map((e,i)=>i)}
+ const ei=avail[Math.floor(Math.random()*avail.length)];S.fused[cid].push(ei);const ev=pool[ei];S.screen='fevent';save();sfx.ring();
+ screen.innerHTML=`${fhud()}<h2>${t.n} → ${c.name}</h2>
+ <div class="talk"><div><canvas id="evcv"></canvas><div class="who">${c.name}<br>${c.role}</div></div><div class="bub">${esc(ev.t)}</div></div>
+ <div class="opts">${ev.o.map((o,i)=>`<button class="btn" data-o="${i}">${i+1}. ${esc(o.l)}</button>`).join('')}</div>`;
+ portrait($('#evcv'),c.face);
+ screen.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ev.o[b.dataset.o];const k=S.fday+tid;
+  if(o.done){S.fdone[k]=cid;S.data+=10}else{S.fskip=S.fskip||{};S.fskip[k]=1}
+  S.data=Math.max(0,Math.min(100,S.data+(o.data||0)));S.budget-=(o.c||0);S.morale=Math.max(0,Math.min(100,S.morale+(o.m||0)));
+  const line=`D${S.fday} ${t.n} / ${c.name}: ${o.done?'DONE':'not done'}${o.data?` (data ${o.data>0?'+':''}${o.data})`:''}`;S.log.push(line);
+  (o.done?(o.m<0?sfx.meh:sfx.good):sfx.bad)();save();
+  screen.querySelector('.opts').innerHTML=`<div class="res ${o.done?(o.m<0?'':'good'):'bad'}">${esc(o.r)}<div class="fine" style="margin-top:6px">${esc(line)}${o.m?` · morale ${o.m>0?'+':''}${o.m}`:''}</div></div><div class="row" style="margin-top:10px"><button class="btn" id="next">Next ▶</button></div>`;
+  $('#next').onclick=()=>{sfx.click();fplan()}})}
+
+function fincident(){S.incDay=S.incDay||{};S.incDay[S.fday]=1;
+ // guaranteed if a required mob task was skipped and that incident hasn't fired; otherwise 60%
+ let forced=INCIDENTS.map((e,i)=>i).filter(i=>INCIDENTS[i].req&&!S.done[INCIDENTS[i].req]&&!S.usedInc.includes(i));
+ let avail=INCIDENTS.map((e,i)=>i).filter(i=>!S.usedInc.includes(i)&&!(INCIDENTS[i].req&&!S.done[INCIDENTS[i].req]));
+ let ei;if(forced.length)ei=forced[0];else{if(Math.random()>0.6||!avail.length)return false;ei=avail[Math.floor(Math.random()*avail.length)]}
+ S.usedInc.push(ei);const ev=INCIDENTS[ei];S.screen='fincident';S.curI=ei;save();sfx.bad();
+ screen.innerHTML=`${fhud()}<h2 style="color:var(--red)">INCIDENT — Day ${S.fday}, late arvo</h2>
+ <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Radio<br>UHF 40</div></div><div class="bub">${esc(ev.t)}</div></div>
+ <div class="opts">${ev.o.map((o,i)=>`<button class="btn" data-o="${i}">${i+1}. ${esc(o.l)}</button>`).join('')}</div>`;
+ portrait($('#hostcv'),HOST.face);
+ screen.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=ev.o[b.dataset.o];
+  S.data=Math.max(0,Math.min(100,S.data+(o.data||0)));S.budget-=(o.c||0);S.morale=Math.max(0,Math.min(100,S.morale+(o.m||0)));if(o.inc)S.inc++;
+  const line=`D${S.fday} incident: ${o.l}${o.inc?' (recordable)':''}${o.c?` (-$${o.c})`:''}`;S.log.push(line);(o.inc?sfx.bad:sfx.meh)();
+  screen.querySelector('.opts').innerHTML=`<div class="res ${o.inc||o.m<0?'bad':'good'}">${esc(o.r)}</div><div class="row" style="margin-top:10px"><button class="btn" id="next">End of day ▶</button></div>`;
+  $('#next').onclick=()=>{sfx.click();S.fday++;fplan()}});
+ return true}
+
+function fend(){S.screen='end';save();const bust=S.budget<0;
+ let title,body,stars=0;
+ stars+=S.data>=90?2:S.data>=70?1:0;stars+=S.inc===0?2:S.inc<=1?1:0;stars+=(!bust&&S.morale>=50)?1:0;
+ if(stars>=5){title='TRIP OF THE YEAR';body='Full data, no recordables, crew still talking to you. Colin will take credit for this.'}
+ else if(stars>=4){title='GOOD TRIP';body='Client\'s happy, data\'s in, one thing went in Mango. That is a normal trip.'}
+ else if(stars>=2){title='A TRIP HAPPENED';body='Some data. Some incidents. Some invoices. Rusty says it used to be worse.'}
+ else{title='NEVER AGAIN';body='The client rang Colin. Colin rang you. Marcus is fishing.'}
+ if(S.inc>=3)body+=' The safety manager wants a word on Monday.';
+ screen.innerHTML=`<h1>${title}</h1><h2>Data ${S.data}% · Recordables ${S.inc} · Budget $${S.budget.toLocaleString()} · Morale ${S.morale}%</h2>
+ <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(5-stars)}</div>
+ <div class="talk" style="margin-top:12px"><div><canvas id="hostcv"></canvas><div class="who">${HOST.name}</div></div><div class="bub">${esc(body)}</div></div>
+ <div class="cert"><span style="font-size:14px;letter-spacing:3px">CERTIFICATE OF DEMOBILISATION</span><b>${title}</b><span>Mobilised at ${S.mobReady}% · ${new Date().toLocaleDateString('en-AU')}</span></div>
+ <div class="log">${S.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+ <div class="row" style="margin-top:12px"><button class="btn big" id="again">▶ PLAY AGAIN</button></div>`;
+ portrait($('#hostcv'),HOST.face);(stars>=4?sfx.good:sfx.bad)();
+ $('#again').onclick=()=>{sfx.click();S=JSON.parse(JSON.stringify(START));S.screen='plan';plan()};status('Demobbed.')}
+
+function resume(){if(S.phase==='field')fplan();else plan()}
+
 // ---------- boot ----------
 function boot(){S=JSON.parse(JSON.stringify(START));title()}
 if(window.claude?.hot?.snapshot)window.claude.hot.snapshot(()=>S);
-window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;plan()}else boot()}):boot();
+window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;resume()}else boot()}):boot();
 </script>
 
 </body>
