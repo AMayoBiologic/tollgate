@@ -995,7 +995,7 @@ INBOX.push(
 // ENGINE — pure game logic. No DOM in here, so the balance harness can
 // drive a whole season headlessly.
 // =====================================================================
-const SEASON_WEEKS=46, COST_PD=420, VAL_PD=3400, REV_TARGET=900000, SAFETY_LIMIT=2, CLIENT_MIN=4;
+const SEASON_WEEKS=46, COST_PD=420, VAL_PD=3400, REV_TARGET=1000000, SAFETY_LIMIT=2, CLIENT_MIN=4;
 const R=Math.random, rint=(a,b)=>a+Math.floor(R()*(b-a+1)), pick=a=>a[Math.floor(R()*a.length)];
 const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v));
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
@@ -1274,7 +1274,7 @@ function newSeason(){const v=seasonVerdict();if(S.rank>=3)S.probs=v.pass?0:(S.pr
   if(s.age>=50)bumpStat(s,'fit',-rint(1,2));if(s.age>=55&&R()<.5)bumpStat(s,'field',-1);
   if(s.age<=27){const k=pick(['field','admin','rel','fit']);bumpStat(s,k,(s.traits.includes('keen')?2:1)+(F('grad')?1:0));notes.push(`${s.name} has come on: ${k} up.`)}
   if(s.id!=='rusty'&&((s.age>=58&&R()<.35)||(s.age>=61&&R()<.75))){removeStaff(s.id,'retired.');notes.push(`${s.name} has retired.`)}});
- Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=Math.round(S.clientRep[c]*.7+60*.3));
+ Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=Math.round(S.clientRep[c]*.85+60*.15));
  (S.reports||[]).forEach(r=>{if(!r.delivered)r.due-=SEASON_WEEKS});S.tenders=[];S.trips=genSeasonTrips(isDept()?DEPTS[S.dept].types:null);if(S.rank>=3||isDept())S.trips=tenderise(S.trips);if(isDept())S.deptWins=S.deptWins||0;S.inbox=S.inbox.slice(0,10);refreshMarket();if(F('grad'))S.market.unshift(genApplicant('Graduate Ecologist'));
  mail({from:'Colin',face:'colin',subj:`Season ${S.season}`,body:`New season. The board want ${money(S.target.rev)}, no more than ${S.target.safety} recordables, and ${S.target.clients} clients happy. ${notes.join(' ')}`});
  log(`Season ${S.season} begins.`)}
@@ -1614,6 +1614,8 @@ const PRICES=[{id:'bottom',l:'Rock bottom (-25%)',m:.75},{id:'sharp',l:'Sharp (-
 const WEIGHTS={newm:{price:35,method:25,team:20,safety:20},s32:{price:30,method:25,team:20,safety:25},rio:{price:30,method:20,team:20,safety:30},dept:{price:25,method:40,team:25,safety:10},lith:{price:50,method:20,team:20,safety:10}};
 const REQS={senior:'Named lead with 15+ years in the field (Fieldcraft 15+)',iso:'ISO 45001 certification',local:'Demonstrated previous work for us',recs:'No recordable injuries this season',fast:'Final report within two weeks of fieldwork'};
 const METHODS=[{id:'rapid',l:'Rapid assessment',dd:-1,base:45,d:'One day less. Cheaper. Thin.'},{id:'standard',l:'Standard survey to guidelines',dd:0,base:65,d:'Does what the scope asks.'},{id:'extended',l:'Extended survey, extra effort',dd:1,base:85,d:'One more day. More data. More cost.'}];
+const REP_TIERS=[{min:0,n:'On notice',d:"Left off some RFQs. Rivals get the benefit of the doubt."},{min:40,n:'Supplier',d:'Normal tendering.'},{min:65,n:'Trusted',d:'They hint at their budget.'},{min:78,n:'Preferred supplier',d:'Some jobs come as direct awards, no competition.'},{min:90,n:'Partner',d:'More direct awards. Rivals score lower against you.'}];
+function repTier(c){const v=S.clientRep[c];return REP_TIERS.filter(t=>v>=t.min).pop()}
 const RIVALS=['The Other Mob','Big Consultancy Pty Ltd','a one-person outfit from Broome','an East Coast firm with a Perth office'];
 function freeWeek(pref){let wk=Math.max(S.week+3,Math.min(SEASON_WEEKS-2,pref));const busy=w=>S.trips.some(t=>!t.result&&Math.abs(t.wk-w)<2);
  for(let d=0;d<20;d++){for(const w of [wk+d,wk-d]){if(w>S.week+2&&w<=SEASON_WEEKS-2&&!busy(w))return w}}return null}
@@ -1635,7 +1637,7 @@ function propScores(td,p){const t=td.trip,c=t.client,tm=p.team.map(staff).filter
  const price=70+(td.comp-propPrice(td,p))/td.comp*140;
  return {team:Math.round(clamp(team)),method:Math.round(clamp(method)),safety:Math.round(clamp(safety)),price:Math.round(clamp(price))}}
 function propTotal(td,p){const s=propScores(td,p),wt=WEIGHTS[td.trip.client];let tot=(s.price*wt.price+s.method*wt.method+s.team*wt.team+s.safety*wt.safety)/100;
- tot+=(S.clientRep[td.trip.client]-60)/5+(p.lunch?2:0)+(p.call?1:0);return Math.round(tot*10)/10}
+ tot+=(S.clientRep[td.trip.client]-60)/4+(p.lunch?2:0)+(p.call?1:0);return Math.round(tot*10)/10}
 function submitProp(tid){const td=S.tenders.find(x=>x.id===tid);if(!td||td.sent||!td.prop)return '';const p=td.prop;if(!p.team.length)return 'Name a team first.';
  td.sent=true;if(p.lunch){S.cash-=400;S.clientRep[td.trip.client]=clamp(S.clientRep[td.trip.client]+1)}if(p.plan)S.cash-=1500;
  if(td.writer==='me'&&S.me.write<17)S.me.write++;const w=staff(td.writer);
@@ -1666,7 +1668,9 @@ function propIssues(td,p){const t=td.trip,wt=WEIGHTS[t.client],lead=staff(p.lead
  return out}
 
 function tenderWeekly(){if(!S.tenders)return;
- S.tenders.filter(td=>!td.announced&&td.opens<=S.week+1&&!td.done).forEach(td=>{td.announced=true;const t=td.trip;
+ S.tenders.filter(td=>!td.announced&&td.opens<=S.week+1&&!td.done).forEach(td=>{td.announced=true;const t=td.trip,rep=S.clientRep[t.client];
+  if(rep<40&&R()<.5){td.done=true;mail({from:CLIENTS[t.client],face:'client',subj:`Not invited: ${t.name}`,body:"We've gone to our usual suppliers for this one."});log(`Not invited to tender: ${t.name}.`);return}
+  if((rep>=90&&R()<.4)||(rep>=78&&R()<.2)){td.direct=true;mail({from:CLIENTS[t.client],face:'client',subj:`Direct award: ${t.name}`,body:`No tender this time. We'd like you to do it. Send a team and a price by week ${td.closes}.`,opts:[{l:'Open it',e:{goto:td.id,out:'Opened.'}}]});return}
   mail({from:CLIENTS[t.client],face:'client',subj:`Request for quote: ${t.name}`,body:`${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Closes week ${td.closes}. Requirement: ${REQS[td.req]}. Put a proposal together on the Tenders screen.`,opts:[{l:'Open the RFQ',e:{goto:td.id,out:'Opened.'}}]})});
  S.tenders.filter(td=>td.writer&&td.writer!=='me'&&!td.sent&&!td.readyMailed&&S.week>=td.draftWk&&!td.done).forEach(td=>{td.readyMailed=true;const ws=staff(td.writer);
   mail({from:ws?ws.name:'Writer',face:ws?ws.face:'colin',subj:`Draft for review: ${td.trip.name}`,body:`Draft's done. Closes week ${td.closes}. ${propIssues(td,td.prop).length?`It has ${propIssues(td,td.prop).length} thing${propIssues(td,td.prop).length>1?'s':''} you'll want to look at.`:'Looks clean.'}`,opts:[{l:'Review it',e:{goto:td.id,out:'Opened.'}}]})});
@@ -1674,8 +1678,8 @@ function tenderWeekly(){if(!S.tenders)return;
   if(!td.sent&&td.prop&&td.writer&&td.writer!=='me'&&S.week>=td.draftWk){td.sent=true;const ws=staff(td.writer);log(`Nobody reviewed ${t.name}. ${ws?ws.name:'The writer'} sent the draft as is.`)}
   if(!td.sent){log(`No proposal: ${t.name}.`);if(isDept())S.board=clamp(S.board-3);return}
   const p=td.prop,mine=propTotal(td,p),s=propScores(td,p),best=td.rivals.slice().sort((a,b)=>b.score-a.score)[0];
-  const rivalBoost=S.clientRep[t.client]<50?5:0;const win=mine>best.score+rivalBoost;
-  const card=`Your score ${mine} (price ${s.price}, methodology ${s.method}, team ${s.team}, safety ${s.safety}). ${win?`Next best: ${best.name} on ${best.score+rivalBoost}.`:`Winner: ${best.name} on ${best.score+rivalBoost}.`}`;
+  const rep=S.clientRep[t.client],rivalBoost=rep<40?5:rep>=90?-3:0;const win=td.direct?(mine>=40&&p.price!=='premium'||mine>=50):mine>best.score+rivalBoost;
+  const card=td.direct?(win?'Direct award confirmed.':'Direct award withdrawn: they found the price hard to justify.'):`Your score ${mine} (price ${s.price}, methodology ${s.method}, team ${s.team}, safety ${s.safety}). ${win?`Next best: ${best.name} on ${best.score+rivalBoost}.`:`Winner: ${best.name} on ${best.score+rivalBoost}.`}`;
   if(win){const wk=freeWeek(t.wk);if(wk==null){mail({from:c,face:'client',subj:`Won, but: ${t.name}`,body:`${card} But your calendar is full and you had to hand it back.`});S.clientRep[t.client]=clamp(S.clientRep[t.client]-5);return}
    t.wk=wk;t.days=propDays(td,p);t.val=propPrice(td,p);t.won=true;t.prop={team:p.team.slice(),lead:p.lead};t.fast=p.fast;S.trips.push(t);if(isDept()){S.deptWins=(S.deptWins||0)+1;S.board=clamp(S.board+4)}S.trips.sort((a,b)=>a.wk-b.wk);
    mail({from:c,face:'client',subj:`Successful: ${t.name}`,body:`${card} PO for ${money(t.val)}. Mobilise week ${wk}, ${t.days} days. Cost budget ${money(estCost(t))}.${p.lead?` They expect ${staff(p.lead)?staff(p.lead).name:'your named lead'} to lead it.`:''}`});log(`Won: ${t.name} (${money(t.val)}).`)}
@@ -1819,7 +1823,8 @@ function squad(){const sel=UI.sel;
 function season(){
  screen.innerHTML=`${hud()}<h2>Season ${S.season} — ${S.trips.length} trips</h2><div class="twrap"><table><tr><th>Wk</th><th>Client</th><th>Trip</th><th>Days</th><th>Needs</th><th>Worth</th><th>Result</th></tr>
  ${S.trips.map(t=>`<tr class="${t.result?'out':''} ${t.wk<=S.week&&!t.result?'sel':''}"><td>${t.wk}</td><td class="fine">${CLIENTS[t.client]}</td><td>${esc(t.name)}</td><td>${t.days}</td><td class="fine">${t.need.field}F ${t.need.admin}A</td><td>${money(t.val)}</td><td>${t.result?(t.result.cancelled?'cancelled':`${'★'.repeat(t.result.stars)}${t.result.rec?' · '+t.result.rec+' rec':''}`):t.wk<=S.week?'<b>NOW</b>':'—'}</td></tr>`).join('')}</table></div>
- <h3>Client relations</h3><div class="hud">${Object.entries(S.clientRep).map(([k,v])=>`<div><b>${CLIENTS[k]}</b>${Math.round(v)}%${bar(v)}</div>`).join('')}</div>
+ <h3>Client relations</h3><div class="hud">${Object.entries(S.clientRep).map(([k,v])=>`<div><b>${CLIENTS[k]}</b>${Math.round(v)}%${bar(v)}<div class="fine">${repTier(k).n}</div></div>`).join('')}</div>
+ <p class="fine">${REP_TIERS.slice(1).map(t=>`${t.n} (${t.min}+): ${t.d}`).join(' ')}</p>
  <p class="fine">The board count a client as happy at 50% or more.</p>${reportsPanel()}`;status('Fixtures.')}
 
 // ---------- inbox ----------
@@ -2084,7 +2089,7 @@ function tenders(){const open=(S.tenders||[]).filter(td=>td.announced&&!td.done)
  screen.innerHTML=`${hud()}<h2>Tenders</h2><p class="fine">Clients send a request for quote. You put a proposal together: team, methodology, safety, price. They score it against the other bidders using their own weightings.</p>
  ${open.length?open.map(td=>{const t=td.trip;const ws=staff(td.writer),drafting=td.writer&&td.writer!=='me'&&S.week<td.draftWk;
   const st=td.sent?'<span class="claim">Submitted</span>':drafting?`${ws?ws.name:'Writer'} drafting, ready week ${td.draftWk}`:td.writer?(td.writer==='me'?'You are writing it':'<span class="claim">Draft ready for review</span>'):'No writer assigned';
-  return `<div class="mail"><div class="from">${CLIENTS[t.client]} · closes week ${td.closes} · ${st}</div><b>${esc(t.name)}</b>
+  return `<div class="mail"><div class="from">${CLIENTS[t.client]} (${repTier(t.client).n}) · closes week ${td.closes} · ${st}${td.direct?' · <span style="color:var(--lime)">DIRECT AWARD</span>':''}</div><b>${esc(t.name)}</b>
   <div class="fine">${t.days} days · ${t.need.field} field + ${t.need.admin} admin · requirement: ${REQS[td.req]}</div><div class="fine">${wline(t.client)}</div>
   <div class="row" style="margin-top:6px">${!td.writer&&!td.sent?`<label class="fine">Writer: <select id="wr-${td.id}">${S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>b.admin-a.admin).map(s=>`<option value="${s.id}">${s.name} · Admin ${s.admin}${s.traits[0]?' · '+s.traits[0]:''}</option>`).join('')}</select></label><button class="btn sm" data-assign="${td.id}">Assign (out for a week)</button>${isDept()?`<button class="btn sm" data-self="${td.id}">Write it yourself (writing ${S.me.write})</button>`:''}`:drafting?'':`<button class="btn sm" data-prop="${td.id}">${td.sent?'View proposal':td.writer==='me'?'Work on it':'Review the draft'}</button>`}</div></div>`}).join(''):'<p class="fine">No open requests for quote.</p>'}
  ${soon.length?`<h3>Expected soon</h3>${soon.slice(0,5).map(td=>`<p class="fine">Around week ${td.opens}: ${esc(td.trip.name)} (${CLIENTS[td.trip.client]})</p>`).join('')}`:''}
@@ -2098,7 +2103,8 @@ function proposal(){const td=(S.tenders||[]).find(x=>x.id===S.goto);if(!td||!td.
  const days=propDays(td,p),price=propPrice(td,p),cost=estCost({...t,days});const dis=ro?'disabled':'';
  const staffCards=S.staff.filter(s=>!s.temp).map(s=>{const on=p.team.includes(s.id),fam=(s.clients||{})[t.client];return `<button class="btn card" data-tm="${s.id}" ${dis} style="${on?pressed:''}">${scv(s)}<span>${on?'● ':''}${s.name}${p.lead===s.id?' (lead)':''}</span><span class="fine">Fld ${s.field} · Rel ${s.rel}</span>${fam?`<span class="fine">worked for ${CLIENTS[t.client].split(' ')[0]}</span>`:''}</button>`}).join('');
  screen.innerHTML=`${hud()}<h2>Proposal: ${esc(t.name)}</h2><p class="fine">${td.writer==='me'?`Written by you (writing ${td.q}).`:`Draft by ${staff(td.writer)?staff(td.writer).name:'your writer'} (writing ${td.q}${td.rewritten?', rewritten':''}). You're reviewing it: change what you like.`}</p>
- ${talk('client',CLIENTS[t.client],`Request for quote. ${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Proposals close week ${td.closes}.<br><br><b>Requirement:</b> ${REQS[td.req]}.<br><b>We score on:</b> price ${wt.price}%, methodology ${wt.method}%, team ${wt.team}%, safety ${wt.safety}%.`)}
+ ${talk('client',CLIENTS[t.client],`Request for quote. ${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Proposals close week ${td.closes}.<br><br><b>Requirement:</b> ${REQS[td.req]}.<br>${td.direct?'<b>Direct award.</b> No competition. Send a reasonable price and a proper team.':`<b>We score on:</b> price ${wt.price}%, methodology ${wt.method}%, team ${wt.team}%, safety ${wt.safety}%.`}${!td.direct&&S.clientRep[t.client]>=65?`<br><br><i>Off the record, the budget's around ${money(Math.round(td.comp/5000)*5000)}.</i>`:''}`)}
+ <p class="fine">You're a <b>${repTier(t.client).n}</b> to ${CLIENTS[t.client]} (${Math.round(S.clientRep[t.client])}%). ${repTier(t.client).d}</p>
  ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}${!ro&&propIssues(td,p).length?`<div class="res bad"><b>Review notes</b><br>${propIssues(td,p).map(esc).join('<br>')}</div>`:!ro?'<div class="res good">Nothing obviously wrong.</div>':''}
  <h3>1. Team (pick ${need}, then a lead)</h3><div class="crew">${staffCards}</div>
  ${p.team.length?`<div class="row" style="margin-top:6px"><label class="fine">Lead: <select id="lead" ${dis}><option value="">none named</option>${p.team.map(id=>staff(id)).filter(Boolean).map(s=>`<option value="${s.id}" ${p.lead===s.id?'selected':''}>${s.name} (Fld ${s.field})</option>`).join('')}</select></label></div>`:''}
