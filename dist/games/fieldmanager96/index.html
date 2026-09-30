@@ -1,3 +1,11 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#008080">
+</head>
+<body>
 <title>Field Manager '96</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
 <style>
@@ -49,6 +57,7 @@ th{font-family:var(--font-head);font-size:8px;color:var(--sky);text-align:left;p
 td{padding:3px 6px;border-bottom:1px dotted rgba(255,255,255,.15);vertical-align:middle}
 tr.pick{cursor:pointer}tr.pick:hover td{background:rgba(255,255,255,.06)}
 tr.sel td{background:rgba(127,255,42,.12)}
+tr.main td{border-bottom:0}tr.sub td{padding-top:0;padding-bottom:6px}
 tr.out td{opacity:.45}
 .twrap{overflow-x:auto}
 canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-align:middle}
@@ -88,7 +97,41 @@ canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-
 .qa{border-left:3px solid var(--sky);padding:4px 10px;margin:6px 0}
 .qa b{color:var(--sky)}
 .tbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-select{font-family:var(--font-body);font-size:18px}
+select{font-family:var(--font-body);font-size:18px;max-width:100%}
+label{max-width:100%}
+.m-only{display:none}
+.adv{display:contents}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.btn,tr.pick,select{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+@media (max-width:640px){
+ body{padding:6px 6px calc(76px + env(safe-area-inset-bottom));font-size:18px}
+ .win{box-shadow:none}
+ .nav{display:flex;overflow-x:auto;gap:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+ .nav::-webkit-scrollbar{display:none}
+ .nav .btn{flex:0 0 auto;width:auto;font-size:18px;padding:4px 12px;min-height:44px;white-space:nowrap}
+ .nav .btn .n{float:none;margin-left:4px;font-size:13px}
+ .nav>p{white-space:nowrap}
+ .adv{display:flex;gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--win);padding:6px 8px calc(6px + env(safe-area-inset-bottom));border-top:2px solid var(--win-light);box-shadow:0 -2px 0 var(--win-dark)}
+ .adv .btn{flex:1;min-height:52px;font-size:17px;padding:4px;text-align:center;white-space:nowrap}
+ .screen{padding:10px;min-height:0}
+ .btn{min-height:40px}
+ .btn.sm{min-height:36px;padding:4px 10px}
+ .btn.big{width:100%;text-align:center;font-size:12px}
+ .tbar .btn{margin-bottom:6px}
+ h1{font-size:17px}h2{font-size:12px}h3{font-size:10px}
+ .hud{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .hud b,.who,.mail .from,th{font-size:10px}
+ .tag{font-size:8px}
+ table{font-size:17px}
+ td,th{padding:4px 3px}
+ .cbar{width:34px}
+ .m-hide{display:none}
+ .m-only{display:block}
+ .talk .bub{font-size:19px}
+ .tb{font-size:9px}
+ select{min-height:38px}
+ .status{font-size:15px}
+}
 </style>
 
 <div class="win" role="application" aria-label="Field Manager 96">
@@ -2050,9 +2093,11 @@ const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox',
 const VIEW_LABEL={ops:'Operations',safety:'Safety',tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
 function nav(){if(!S||S.screen!=='game'){$('#nav').innerHTML=S&&S.screen==='trip'?'<p class="fine" style="padding:6px">On site. The office is closed.</p>':'';return}const tw=nextTrip()&&nextTrip().wk<=S.week;
  $('#nav').innerHTML=views().map(k=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${VIEW_LABEL[k]}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
- (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw&&!(S.rank===4&&S.gm&&!nextTrip().self)?'<b>▶ Trip!</b>':'▶ Next week'}</button>${S.rank===4?'<button class="btn" id="runon" title="Run weeks until something needs you">▶▶ Until needed</button>':''}`);
- $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;UI.sel=null;render()});
- $('#advance').onclick=()=>{sfx.click();advance()};const ro=$('#runon');if(ro)ro.onclick=()=>{sfx.click();runOn();if(S.screen==='end')sfx.bad();render()}}
+ '<div class="adv">'+(S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw&&!(S.rank===4&&S.gm&&!nextTrip().self)?'<b>▶ Trip!</b>':'▶ Next week'}</button>${S.rank===4?'<button class="btn" id="runon" title="Run weeks until something needs you">▶▶ Until needed</button>':''}`)+'</div>';
+ const nv=$('#nav'),on=nv.querySelector('.btn.on');if(on&&nv.scrollWidth>nv.clientWidth)nv.scrollLeft=on.offsetLeft-nv.clientWidth/2+on.offsetWidth/2;
+ $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;UI.sel=null;render();toTop()});
+ $('#advance').onclick=()=>{sfx.click();advance();toTop()};const ro=$('#runon');if(ro)ro.onclick=()=>{sfx.click();runOn();if(S.screen==='end')sfx.bad();render();toTop()}}
+function toTop(){try{window.scrollTo(0,0)}catch(e){}}
 
 function render(){save();nav();
  if(S.screen==='trip')return tripView();
@@ -2109,8 +2154,8 @@ function office(){const t=nextTrip(),wk=S.week;
 
 // ---------- squad ----------
 function squad(){const sel=UI.sel;
- screen.innerHTML=`${hud()}<h2>Squad — ${S.staff.length}</h2><div class="twrap"><table><tr><th></th><th>Name</th><th>Role</th><th>Age</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th>Wage</th><th>Ctr</th></tr>
- ${S.staff.map(s=>`<tr class="pick ${sel===s.id?'sel':''}" data-id="${s.id}"><td>${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}${S.busy.includes(s.id)?' <span class="inj" style="color:var(--sky)">CAMP</span>':''}</td><td class="fine">${s.role}</td><td>${s.age}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td>${money(s.wage)}</td><td>${s.temp?'temp':s.contract}</td></tr>`).join('')}</table></div>
+ screen.innerHTML=`${hud()}<h2>Squad — ${S.staff.length}</h2><div class="twrap"><table><tr><th class="m-hide"></th><th>Name</th><th class="m-hide">Role</th><th class="m-hide">Age</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th class="m-hide">Wage</th><th class="m-hide">Ctr</th></tr>
+ ${S.staff.map(s=>`<tr class="pick ${sel===s.id?'sel':''}" data-id="${s.id}"><td class="m-hide">${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}${S.busy.includes(s.id)?' <span class="inj" style="color:var(--sky)">CAMP</span>':''}<div class="fine m-only">${s.role}</div></td><td class="fine m-hide">${s.role}</td><td class="m-hide">${s.age}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td class="m-hide">${money(s.wage)}</td><td class="m-hide">${s.temp?'temp':s.contract}</td></tr>`).join('')}</table></div>
  <div id="detail"></div>`;
  screen.querySelectorAll('[data-id]').forEach(r=>r.onclick=()=>{sfx.click();UI.sel=r.dataset.id;squad();faces()});
  const s=staff(sel);if(s){$('#detail').innerHTML=`<h3>${s.name} · ${s.role} · ${s.apps} trip${s.apps===1?'':'s'}${s.recs?`, ${s.recs} recordable${s.recs===1?'':'s'}`:''}</h3>
@@ -2185,8 +2230,8 @@ function board(){const done=S.trips.filter(t=>t.result).length;const happy=Objec
 function pickTeam(){const t=nextTrip();if(!t){S.screen='game';return render()}const need=t.need.field+t.need.admin,n=S.pick.length;
  screen.innerHTML=`${hud()}<h2>Trip: ${esc(t.name)}</h2><p>${CLIENTS[t.client]} · ${t.days} days · hazard ${'▲'.repeat(t.hazard)||'low'} · needs ${t.need.field} field + ${t.need.admin} admin · worth up to ${money(t.val)}.</p>
  ${t.prop&&t.prop.lead?`<p class="claim">Your proposal named ${staff(t.prop.lead)?staff(t.prop.lead).name:'a lead'} to lead this job. The proposed crew is pre-selected.</p>`:''}${S.promise&&!S.promise.gone&&S.promise.client===t.client?`<p class="claim">You promised ${CLIENTS[t.client]} ${staff(S.promise.id)?staff(S.promise.id).name:'someone'}.</p>`:''}
- <div class="twrap"><table><tr><th></th><th></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th>Traits</th></tr>
- ${S.staff.map(s=>{const ok=avail(s);return `<tr class="${ok?'pick':'out'} ${S.pick.includes(s.id)?'sel':''}" data-id="${ok?s.id:''}"><td>${S.pick.includes(s.id)?'✔':ok?'▢':'✘'}</td><td>${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td class="fine">${s.traits.join(', ')}</td></tr>`}).join('')}</table></div>
+ <div class="twrap"><table><tr><th></th><th class="m-hide"></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th></tr>
+ ${S.staff.map(s=>{const ok=avail(s),cl=`${ok?'pick':'out'} ${S.pick.includes(s.id)?'sel':''}`;return `<tr class="${cl} main" data-id="${ok?s.id:''}"><td>${S.pick.includes(s.id)?'✔':ok?'▢':'✘'}</td><td class="m-hide">${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td></tr><tr class="${cl} sub" data-id="${ok?s.id:''}"><td></td><td class="m-hide"></td><td colspan="7" class="fine">${s.traits.join(' · ')}</td></tr>`}).join('')}</table></div>
  <div class="tbar"><button class="btn" id="best">Best available</button><button class="btn big" id="go" ${n===need?'':'disabled'}>▶ MOBILISE (${n}/${need})</button>${n>0&&n<need?`<button class="btn" id="short">Go short-handed (${n}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button></div>
  <p class="fine" style="margin-top:8px">Short-handed: field checks get harder and incidents likelier. Cancelling: no revenue, and the client and board both take it badly.</p>`;faces();
  screen.querySelectorAll('tr[data-id]').forEach(r=>{if(!r.dataset.id)return;r.onclick=()=>{sfx.click();const id=r.dataset.id;if(S.pick.includes(id))S.pick=S.pick.filter(x=>x!==id);else if(S.pick.length<need)S.pick.push(id);render()}});
@@ -2534,3 +2579,5 @@ function strategy(){const v=companyValue(),g=dirGrowth();
  const wk=screen.querySelector('[data-walk]');if(wk)wk.onclick=()=>{S.dd.walked=true;UI.msg='You walked away. The Other Mob will be at the next industry dinner, being polite.';sfx.meh();render()};
  const rp=$('#repay');if(rp)rp.onclick=()=>{sfx.click();repayLoan();render()};status('Strategy.')}
 </script>
+</body>
+</html>
