@@ -99,6 +99,11 @@ canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-
 .tbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 select{font-family:var(--font-body);font-size:18px;max-width:100%}
 label{max-width:100%}
+.namebox{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;font-family:var(--font-head);font-size:10px;color:var(--amber)}
+.namebox input{flex:1 1 200px;min-width:0;max-width:320px;font-family:var(--font-body);font-size:22px;padding:6px 10px;background:#000;color:var(--lime);border:2px solid;border-color:var(--win-dark) var(--win-light) var(--win-light) var(--win-dark)}
+.namebox input::placeholder{color:var(--dim)}
+.score{border:2px solid var(--amber);padding:10px 12px;background:rgba(255,176,0,.06)}
+.score .big{font-family:var(--font-head);font-size:22px;color:var(--amber);margin-bottom:6px}
 .m-only{display:none}
 .adv{display:contents}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
@@ -1609,7 +1614,7 @@ function beginTrip(t,ids){startTrip(t,ids);const T=S.trip;
  if(S.rank===0){T.admin=true;T.done={};T.mobDays=MOB_DAYS-2}
  if(isHSE()){autoMob();fly()}}
 function needsDebrief(t){return S.rank===1||S.rank>=3||(isHSE()&&t.result.rec>0)}
-function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrips++;S.rankRec=(S.rankRec||0)+r.rec;queueInvestigations(t);S.stats.trips++;S.stats.rec+=r.rec;
+function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrips++;S.rankRec=(S.rankRec||0)+r.rec;queueInvestigations(t);S.stats.trips++;S.stats.stars=(S.stats.stars||0)+r.stars;S.stats.rec+=r.rec;
  if(S.rank===0)S.board=clamp(S.board+((r.ready??100)-80)/2.5+(r.stars-3)-4*(r.breaches||0));
  if(S.rank===1){const est=estCost(t),ov=r.cost-est;S.board=clamp(S.board+(r.stars-3)*5-r.rec*4-3*(r.breaches||0)+(ov<=0?(r.stars>=3?2:0):-Math.min(8,ov/est*20)))}
  if(isHSE())S.board=clamp(S.board+(r.rec===0?5:-7*r.rec));
@@ -1621,7 +1626,7 @@ function promote(branch,dept){const from=S.rank;S.rank++;if(S.rank===2){S.branch
  if(S.rank===4){S.dirSeasons=0;S.gm=null;S.gmCands=null;S.needGM=true;S.dirStart=companyValue()}
  if(isDept()){S.deptWins=0;const types=DEPTS[S.dept].types;S.trips=S.trips.filter(t=>t.result||(types.includes(t.type)&&t.wk>S.week));S.tenders=[];
   const extra=genSeasonTrips(types).filter(t=>t.wk>S.week+4);S.tenders=extra.map(toTender)}
- mail({from:rank().boss,face:rank().face,subj:`You're the ${rank().n}`,body:rank().intro});log(`Promoted to ${rank().n}.`)}
+ mail({from:rank().boss,face:rank().face,subj:`${playerName().split(' ')[0]}, you're the ${rank().n}`,body:rank().intro});log(`Promoted to ${rank().n}.`)}
 // Reviews for trip-counted ranks (Admin, Coordinator).
 function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if(isDept()&&(S.deptWins||0)<2)return (S.retries||0)>=2?'sack':'again';if(isHSE()&&(S.invs||[]).some(v=>!v.done)&&b>=30)return (S.retries||0)>=2?'sack':'again';if((S.retries||0)>=2&&b<65&&!(isHSE()&&(S.rankRec||0)<=SAFETY_LIMIT&&b>=65))return 'sack';if(isHSE()&&(S.rankRec||0)>SAFETY_LIMIT)return 'again';return b>=65?'promote':'again'}
 
@@ -2124,17 +2129,19 @@ function advance(){if(S.week>SEASON_WEEKS){if(S.rank<3){S.party=null;S.screen='y
 function title(){screen.innerHTML=`
  <h1>FIELD MANAGER '96</h1><h2>From the front desk to the boardroom.</h2>
  ${talk('leanne','Leanne<br>Mob Coordinator',"You must be the new admin. Desk's by the printer. The printer doesn't work. First trip goes out next week and nobody's done their paperwork.")}
- <div class="row" style="margin-top:14px"><button class="btn big" id="start">▶ NEW CAREER</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
+ <label class="namebox" for="pname">Your name<input id="pname" maxlength="20" autocomplete="nickname" enterkeyhint="go" placeholder="For the leaderboard" value="${esc(lsGet(LS_NAME,''))}"></label>
+ <div class="row" style="margin-top:10px"><button class="btn big" id="start">▶ NEW CAREER</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="hall">🏆 Hall of Fame</button><button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
  <h3>The career</h3>
  <p class="fine">1. Office Admin: chase paperwork, book flights, beds, cars and freight.<br>2. Mobilisation Coordinator: pick the teams, run the mob and the field.<br>3. HSE Manager: every incident is yours.<br>4. General Manager: staff, hiring, HR, facilities, the board.<br>5. Director: appoint a GM, face the board, grow the company, hand it over.</p>
  <p class="fine">Your boss reviews you as you go. Do well and you're promoted. Do badly and it's over.</p>`;
  faces();$('#nav').innerHTML='';
- $('#start').onclick=()=>{sfx.ring();START();seedInbox();S.screen='game';S.view='inbox';render()};
+ const go=()=>{const n=cleanName($('#pname').value);lsSet(LS_NAME,n);sfx.ring();START();S.me.name=n||'Anonymous';seedInbox();S.screen='game';S.view='inbox';render();toTop()};
+ $('#start').onclick=go;$('#pname').onkeydown=e=>{if(e.key==='Enter')go()};$('#hall').onclick=()=>{sfx.click();hallView(title)};
  const c=$('#cont');if(c)c.onclick=()=>{try{S=JSON.parse(localStorage.getItem('fm96'))}catch(e){}render()};
  $('#mute').onclick=e=>{muted=!muted;e.target.textContent='Sound: '+(muted?'OFF':'ON')};status('Insert disc.')}
 
 function seedInbox(){mail({from:'Fleet',face:'colin',subj:'Ute 3',body:'Ute 3 has "a new shape". Dazza says it was like that.'});
- mail({from:'Leanne',face:'leanne',subj:'Welcome',body:RANKS[0].intro})}
+ mail({from:'Leanne',face:'leanne',subj:`Welcome, ${playerName()}`,body:RANKS[0].intro})}
 
 // ---------- office ----------
 function office(){const t=nextTrip(),wk=S.week;
@@ -2350,7 +2357,7 @@ function testimonialView(){const r=staff('rusty');$('#nav').innerHTML='';
 // ---------- boot ----------
 function boot(){S=null;title()}
 if(window.claude?.hot?.snapshot)window.claude.hot.snapshot(()=>S);
-window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;render()}else boot()}):boot();
+
 
 // =====================================================================
 // UI — facilities, HR, strategy, bookings, reviews, career ending
@@ -2411,7 +2418,7 @@ function reviewView(){$('#nav').innerHTML='';const o=reviewOutcome(),rk=rank();
  $('#rv').onclick=()=>{if(o==='promote'){if(S.rank===1){S.screen='branch';return render()}if(S.rank===2)S.cash=80000;promote();S.screen='game';S.view='inbox'}else if(o==='sack'){S.final='sacked';S.screen='final'}else{S.retries=(S.retries||0)+1;S.rankTrips=Math.max(0,rk.review-2);if(isHSE())S.rankRec=0;S.screen='game'}render()};status('Review.')}
 
 // ---------- career ending ----------
-function finalView(){$('#nav').innerHTML='';S.over=true;save();const kind=S.final;const v=companyValue();
+function finalView(){$('#nav').innerHTML='';S.over=true;recordScore();save();const kind=S.final;const v=companyValue();
  let title,body;
  if(kind==='retire'||kind==='sold'){const g=dirGrowth(),sc=dirScore(),how=kind==='sold'?`You sold it for ${money(S.salePrice)}`:`You handed over a company worth ${money(v)}`,div=S.divPaid?`, plus ${money(S.divPaid)} in dividends along the way`:'';
   title=g>=2.2?'CHAIR OF THE BOARD':g>=1.6?'RETIRED WITH A BOAT':g>=1.2?'RETIRED TO CONSULTING':'QUIETLY REPLACED';
@@ -2419,10 +2426,11 @@ function finalView(){$('#nav').innerHTML='';S.over=true;save();const kind=S.fina
  else{title='CAREER OVER';body=`${rank().n}, season ${S.season}. It ended here. Rusty says it used to be worse.`}
  const rusty=staff('rusty')?'Rusty is still here, still telling the goanna story.':S.rustyRetired?'Rusty retired. Trap line 3 still has his name on it, somewhere.':'Rusty left along the way. He took the goanna story with him.';
  screen.innerHTML=`<h1>${title}</h1>${talk(kind==='retire'||kind==='sold'?'chair':'deb',kind==='retire'||kind==='sold'?'The Chair':'Deb, HR',esc(body))}
- <h3>Career</h3><div class="log" style="max-height:none"><div>S1 W1: Office Admin, desk by the printer.</div>${S.career.map(c=>`<div>${esc(c.at)}: ${RANKS[c.rank].n}.</div>`).join('')}</div>
+ <h3>Career</h3><div class="log" style="max-height:none"><div>S1 W1: Office Admin, desk by the printer.</div>${S.career.map(c=>`<div>${esc(c.at)}: ${rankName(c.rank)}.</div>`).join('')}</div>
+ ${scoreBlock()}
  <div class="hud"><div><b>Trips</b>${S.stats.trips}</div><div><b>Recordables</b>${S.stats.rec}</div><div><b>Hired</b>${S.stats.hired}</div><div><b>Dismissed</b>${S.stats.fired}</div>${S.rank>=3?`<div><b>${kind==='sold'?'Sale price':'Company value'}</b>${money(kind==='sold'?S.salePrice:v)}</div>`:''}</div>
- <p>${rusty}</p><div class="tbar"><button class="btn big" id="again">▶ NEW CAREER</button></div>`;faces();(kind==='retire'||kind==='sold'?sfx.good:sfx.bad)();
- $('#again').onclick=()=>{START();seedInbox();S.screen='game';render()};status('The end.')}
+ <p>${rusty}</p><div class="tbar"><button class="btn big" id="again">▶ NEW CAREER</button><button class="btn" id="fhall">🏆 Hall of Fame</button></div>`;faces();(kind==='retire'||kind==='sold'?sfx.good:sfx.bad)();
+ $('#again').onclick=()=>{sfx.click();boot();toTop()};$('#fhall').onclick=()=>{sfx.click();hallView(()=>render())};status('The end.')}
 
 // =====================================================================
 // UI — tenders, variations, reports
@@ -2578,6 +2586,66 @@ function strategy(){const v=companyValue(),g=dirGrowth();
  const dd=screen.querySelector('[data-dd]');if(dd)dd.onclick=()=>{UI.msg=dueDiligence();sfx.meh();render()};
  const wk=screen.querySelector('[data-walk]');if(wk)wk.onclick=()=>{S.dd.walked=true;UI.msg='You walked away. The Other Mob will be at the next industry dinner, being polite.';sfx.meh();render()};
  const rp=$('#repay');if(rp)rp.onclick=()=>{sfx.click();repayLoan();render()};status('Strategy.')}
+
+// =====================================================================
+// NAME, CAREER SCORE AND HALL OF FAME
+// Local board works on every device. The shared board switches on when
+// BOARD.url and BOARD.key point at a Supabase project (see README).
+// =====================================================================
+const BOARD={url:'',key:''};
+const LS_NAME='fm96-name',LS_HALL='fm96-hall';
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function cleanName(n){return String(n||'').replace(/[<>"'`\\]/g,'').replace(/\s+/g,' ').trim().slice(0,20)}
+function playerName(){return (S&&S.me&&S.me.name)||lsGet(LS_NAME,'')||'Anonymous'}
+
+// ---------- score ----------
+const RANK_PTS=[0,1000,2500,5000,8000];
+function rankName(r){return r===2&&S.branch==='dept'&&S.dept?DEPT_RANK(S.dept).n:RANKS[r].n}
+function endingTitle(){if(S.final==='retire'||S.final==='sold'){const g=dirGrowth();return (S.final==='sold'?'Sold · ':'')+(g>=2.2?'Chair of the Board':g>=1.6?'Retired with a boat':g>=1.2?'Retired to consulting':'Quietly replaced')}
+ return `Sacked as ${rankName(S.rank)}`}
+function careerScore(){const st=S.stats||{},lines=[];let tot=0;const add=(l,v)=>{if(!v)return;lines.push([l,v]);tot+=v};
+ add(`Reached ${rankName(S.rank)}`,RANK_PTS[S.rank]||0);
+ add(`${st.stars||0} stars across ${st.trips||0} trips`,(st.stars||0)*20);
+ add(`${st.rec||0} recordable${st.rec===1?'':'s'}`,-(st.rec||0)*100);
+ if(S.final==='retire'||S.final==='sold'){add('Finished the career',2000);const g=dirGrowth();if(g>1)add(`Grew the company ${g.toFixed(2)}×`,Math.round((g-1)*10000))}
+ return {total:Math.max(0,Math.min(99999,Math.round(tot))),lines}}
+
+// ---------- boards ----------
+function localHall(){return lsGet(LS_HALL,[])}
+function recordScore(){if(S.scored)return S.scored;const sc=careerScore(),e={name:playerName(),score:sc.total,ending:endingTitle(),seasons:S.season,date:new Date().toISOString().slice(0,10),id:Date.now()+'-'+Math.floor(R()*1e6)};
+ const h=localHall().concat(e).sort((a,b)=>b.score-a.score).slice(0,25);lsSet(LS_HALL,h);
+ S.scored={id:e.id,score:e.score,local:h.findIndex(x=>x.id===e.id)+1,online:BOARD.url?'posting':'off'};save();
+ if(BOARD.url)boardPost(e).then(pos=>{S.scored.online=pos?pos:'failed';save();const el=$('#onlinepos');if(el)el.innerHTML=onlineLine()});
+ return S.scored}
+async function boardFetch(){if(!BOARD.url)return null;
+ try{const r=await fetch(`${BOARD.url}/rest/v1/scores?select=name,score,ending,seasons,created_at&order=score.desc&limit=25`,{headers:{apikey:BOARD.key,Authorization:'Bearer '+BOARD.key}});if(!r.ok)return null;return await r.json()}catch(e){return null}}
+async function boardPost(e){
+ try{const r=await fetch(`${BOARD.url}/rest/v1/scores`,{method:'POST',headers:{apikey:BOARD.key,Authorization:'Bearer '+BOARD.key,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({name:e.name,score:e.score,ending:e.ending.slice(0,40),seasons:e.seasons})});
+  if(!r.ok)return null;
+  const c=await fetch(`${BOARD.url}/rest/v1/scores?select=id&score=gt.${e.score}`,{headers:{apikey:BOARD.key,Authorization:'Bearer '+BOARD.key,Prefer:'count=exact',Range:'0-0'}});
+  const n=+((c.headers.get('content-range')||'').split('/')[1]);return isNaN(n)?'posted':n+1}catch(err){return null}}
+function onlineLine(){const o=S&&S.scored&&S.scored.online;
+ return o==='off'?'':o==='posting'?'Posting to the online leaderboard…':o==='failed'?"Couldn't reach the online leaderboard. Your score is saved on this device.":o==='posted'?'Posted to the online leaderboard.':`Online leaderboard: <b>#${o}</b>.`}
+
+// ---------- Hall of Fame screen ----------
+function hallRows(list,mine){return list.length?`<div class="twrap"><table><tr><th>#</th><th>Name</th><th>Score</th><th>Ending</th></tr>${list.map((e,i)=>`<tr class="${mine&&e.id===mine?'sel':''}"><td>${i+1}</td><td>${esc(cleanName(e.name)||'Anonymous')}</td><td>${Number(e.score||0).toLocaleString()}</td><td class="fine">${esc(String(e.ending||'').slice(0,40))}${e.seasons?` · S${+e.seasons}`:''}</td></tr>`).join('')}</table></div>`:'<p class="fine">No scores yet. Be the first.</p>'}
+function hallView(back){$('#nav').innerHTML='';UI.hallTab=UI.hallTab||(BOARD.url?'online':'local');const tab=BOARD.url?UI.hallTab:'local';const mine=S&&S.scored&&S.scored.id;
+ screen.innerHTML=`<h1>HALL OF FAME</h1><h2>Career scores</h2>
+ ${BOARD.url?`<div class="row" style="margin-bottom:10px"><button class="btn ${tab==='online'?'on':''}" data-ht="online" style="${tab==='online'?pressed:''}">Everyone</button><button class="btn" data-ht="local" style="${tab==='local'?pressed:''}">This device</button></div>`:''}
+ <div id="hallbody">${tab==='local'?hallRows(localHall(),mine):'<p class="fine">Loading…</p>'}</div>
+ <h3>How the score works</h3><p class="fine">Rank reached (Coordinator 1,000 · HSE or Department Manager 2,500 · GM 5,000 · Director 8,000), 20 per trip star, minus 100 per recordable. Finish the career as Director for 2,000 more, plus 10,000 for every 1× you grow the company.</p>
+ <div class="tbar"><button class="btn big" id="hback">◀ BACK</button></div>`;
+ screen.querySelectorAll('[data-ht]').forEach(b=>b.onclick=()=>{sfx.click();UI.hallTab=b.dataset.ht;hallView(back)});
+ $('#hback').onclick=()=>{sfx.click();back()};
+ if(tab==='online')boardFetch().then(list=>{const el=$('#hallbody');if(!el)return;el.innerHTML=list?hallRows(list):`<p class="fine">Couldn't reach the online leaderboard. Try again later, or check "This device".</p>`});
+ status('Hall of Fame.')}
+function scoreBlock(){const sc=careerScore(),r=S.scored||{};
+ return `<h3>Score · ${esc(playerName())}</h3><div class="score"><div class="big">${sc.total.toLocaleString()}</div>${sc.lines.map(([l,v])=>`<div class="fine">${esc(l)}: ${v>0?'+':''}${v.toLocaleString()}</div>`).join('')}
+ <p style="margin-top:8px">${r.local?`#${r.local} on this device.`:''} <span id="onlinepos">${onlineLine()}</span></p></div>`}
+
+// Start the game once every script above has loaded.
+window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;render()}else boot()}):boot();
 </script>
 </body>
 </html>
