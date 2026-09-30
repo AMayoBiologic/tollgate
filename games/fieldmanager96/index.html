@@ -1008,7 +1008,7 @@ function START(){const s={season:1,week:1,cash:60000,revenue:0,desk:0,recordable
  staff:JSON.parse(JSON.stringify(STAFF0)).map(x=>({...x,cond:100,inj:0,apps:0,recs:0,since:1,known:true})),
  market:[],trips:[],clientRep:{newm:60,s32:60,rio:60,dept:60,lith:60},
  inbox:[],log:[],cd:{},seen:{},flags:{},busy:[],training:{},att:3,camps:{},promise:null,
- trip:null,pick:[],screen:'title',view:'office',tripSeq:0,apSeq:0,history:[],rustyOneMore:0,fac:{},building:[],pending:[],hires:{},redundant:{},rank:0,rankStart:1,stats:{trips:0,rec:0,hired:0,fired:0},budget:0,lastRevenue:0,rankTrips:0,career:[],strat:{}};
+ trip:null,pick:[],screen:'title',view:'office',tripSeq:0,apSeq:0,history:[],rustyOneMore:0,fac:{},building:[],pending:[],hires:{},redundant:{},rank:0,rankStart:1,me:{write:9},branch:null,dept:null,stats:{trips:0,rec:0,hired:0,fired:0},budget:0,lastRevenue:0,rankTrips:0,career:[],strat:{}};
  S=s;s.trips=TRIPS0.map(t=>mkTrip(t));s.target=targetFor(1);for(let i=0;i<4;i++)s.market.push(genApplicant());return s}
 function targetFor(season){return {rev:Math.round(REV_TARGET*(1+.08*(season-1))/5000)*5000,safety:SAFETY_LIMIT,clients:CLIENT_MIN}}
 function mkTrip(t){const n=t.need.field+t.need.admin;return {...t,id:'t'+(++S.tripSeq),val:Math.round(t.days*n*VAL_PD*(1+.06*(S.season-1))/1000)*1000,result:null}}
@@ -1076,7 +1076,7 @@ function weekTick(o={}){const team=o.team||[];
   if(k==='rel'){if(R()<.45){s.rel=clamp(s.rel+1,1,20);log(`${s.name} reliability +1.`)}else log(`${s.name} did the reliability course. Nothing changed.`)}
   else{const cap=s.age>=50?16:20;if(s[k]<cap)s[k]=clamp(s[k]+1,1,20)}}
  S.training={};
- const rshare=S.rank>=3?reportWeekly(team):0;let desk=0;
+ const rshare=(S.rank>=3||isDept())?reportWeekly(team):0;let desk=0;
  S.staff.slice().forEach(s=>{S.cash-=s.wage;
   if(!team.includes(s.id)){if(avail(s))desk+=deskValue(s);s.cond=clamp(s.cond+20)}
   if(s.inj>0)s.inj--;
@@ -1267,7 +1267,7 @@ function testimonial(i){const r=staff('rusty');if(!r)return '';
  if(i===0){r.contract=Math.max(r.contract,52);r.wage=Math.round(r.wage*.8/10)*10;bumpStat(r,'fit',-2);bumpStat(r,'morale',10);S.rustyOneMore++;return 'One more season. He says that every year.'}
  if(i===1){S.cash-=1500;S.staff.forEach(s=>s!==r&&bumpStat(s,'morale',12));S.board=clamp(S.board+4);removeStaff('rusty','retired. Send-off at the depot.');S.rustyRetired=1;return 'Sausages, a speech, and the goanna story one last time. Three people cried. One was the goanna.'}
  S.staff.forEach(s=>s!==r&&bumpStat(s,'morale',8));removeStaff('rusty','retired. Trap line 3 now bears his name.');S.rustyRetired=1;return "There's a sign on trap line 3 now. It says RUSTY'S LINE. Somebody has already moved it."}
-function newSeason(){const v=seasonVerdict();if(S.rank>=3)S.probs=v.pass?0:(S.probs||0)+1;S.lastRevenue=S.revenue;S.season++;if(S.rank===2){S.budget=60000;S.rankRec=0}if(S.rank===4)S.dirSeasons=(S.dirSeasons||0)+1;S.week=1;S.revenue=0;S.desk=0;S.recordables=0;S.board=v.pass?Math.max(S.board,55):40;S.target=targetFor(S.season);
+function newSeason(){const v=seasonVerdict();if(S.rank>=3)S.probs=v.pass?0:(S.probs||0)+1;S.lastRevenue=S.revenue;S.season++;if(isHSE()){S.budget=60000;S.rankRec=0}if(S.rank===4)S.dirSeasons=(S.dirSeasons||0)+1;S.week=1;S.revenue=0;S.desk=0;S.recordables=0;S.board=v.pass?Math.max(S.board,55):40;S.target=targetFor(S.season);
  if(S.fac)S.fac.insure=0;const keep={ute:S.flags.ute,process:S.flags.process};S.flags={};Object.keys(keep).forEach(k=>{if(keep[k])S.flags[k]=true});
  const notes=[];
  S.staff.slice().forEach(s=>{if(s.temp){S.staff=S.staff.filter(x=>x!==s);return}s.age++;s.cond=100;
@@ -1275,11 +1275,11 @@ function newSeason(){const v=seasonVerdict();if(S.rank>=3)S.probs=v.pass?0:(S.pr
   if(s.age<=27){const k=pick(['field','admin','rel','fit']);bumpStat(s,k,(s.traits.includes('keen')?2:1)+(F('grad')?1:0));notes.push(`${s.name} has come on: ${k} up.`)}
   if(s.id!=='rusty'&&((s.age>=58&&R()<.35)||(s.age>=61&&R()<.75))){removeStaff(s.id,'retired.');notes.push(`${s.name} has retired.`)}});
  Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=Math.round(S.clientRep[c]*.7+60*.3));
- (S.reports||[]).forEach(r=>{if(!r.delivered)r.due-=SEASON_WEEKS});S.tenders=[];S.trips=genSeasonTrips();if(S.rank>=3)S.trips=tenderise(S.trips);S.inbox=S.inbox.slice(0,10);refreshMarket();if(F('grad'))S.market.unshift(genApplicant('Graduate Ecologist'));
+ (S.reports||[]).forEach(r=>{if(!r.delivered)r.due-=SEASON_WEEKS});S.tenders=[];S.trips=genSeasonTrips(isDept()?DEPTS[S.dept].types:null);if(S.rank>=3||isDept())S.trips=tenderise(S.trips);if(isDept())S.deptWins=S.deptWins||0;S.inbox=S.inbox.slice(0,10);refreshMarket();if(F('grad'))S.market.unshift(genApplicant('Graduate Ecologist'));
  mail({from:'Colin',face:'colin',subj:`Season ${S.season}`,body:`New season. The board want ${money(S.target.rev)}, no more than ${S.target.safety} recordables, and ${S.target.clients} clients happy. ${notes.join(' ')}`});
  log(`Season ${S.season} begins.`)}
-function genSeasonTrips(){const out=[];let wk=2;
- while(wk<=43){const pl=pick(TRIP_GEN.places),k=pick(TRIP_GEN.kinds);const days=rint(...k.days);
+function genSeasonTrips(types){const out=[];let wk=2;const kinds=types?TRIP_GEN.kinds.filter(k=>types.includes(k.type)):TRIP_GEN.kinds;
+ while(wk<=43){const pl=pick(TRIP_GEN.places),k=pick(kinds);const days=rint(...k.days);
   out.push(mkTrip({wk,client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days,need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]}));
   wk+=rint(3,4)}
  const extra=(S.strat&&S.strat.karratha?1:0)+(S.strat&&S.strat.othermob?2:0);
@@ -1538,9 +1538,15 @@ const RANKS=[
   intro:"Congratulations, Director. You still run the place, and now you can grow it: a Pilbara depot, an acquisition, a Seed division. Two seasons. The board will judge you on what the company is worth when you hand it over."},
 ];
 const RANK_VIEWS=[['office','squad','season','inbox'],['office','squad','season','inbox'],['office','squad','season','inbox','train','facilities'],['office','squad','season','tenders','inbox','train','recruit','facilities','board'],['office','squad','season','tenders','inbox','train','recruit','facilities','strategy','board']];
+function isHSE(){return S.rank===2&&S.branch!=='dept'}
+function isDept(){return S.rank===2&&S.branch==='dept'}
+const DEPTS={fauna:{n:'Fauna',types:['fauna','bats','subs'],d:'Trapping, bats, subterranean fauna.'},botany:{n:'Botany',types:['flora'],d:'Flora surveys, weeds, rehab monitoring.'},seed:{n:'Seed & Coastal',types:['seed','marine'],d:'Seed collection, turtles, shorebirds.'}};
+const DEPT_RANK=d=>({n:`${DEPTS[d].n} Manager`,boss:'Colin',bossRole:'General Manager',face:'colin',review:6,
+ intro:`The ${DEPTS[d].n} department is yours. Clients send RFQs; you get a proposal in, either written yourself or by one of your people, reviewed by you. Win it, then deliver it inside the PO and get the report out on time. Six jobs delivered and at least two tenders won, then we'll talk.`});
+function views(){if(isDept())return ['office','squad','season','tenders','inbox','train'];return RANK_VIEWS[S.rank]}
 const HSE_FAC=['comms','camp','medical','tele','insure','hse','iso'];
-const rank=()=>RANKS[S.rank];
-function spend(n){if(S.rank===2)S.budget-=n;else S.cash-=n}
+const rank=()=>isDept()?DEPT_RANK(S.dept):RANKS[S.rank];
+function spend(n){if(isHSE())S.budget-=n;else S.cash-=n}
 
 // Offscreen running of the company while you're junior.
 function careerWeekly(){if(S.rank>=3)return;
@@ -1563,20 +1569,23 @@ function runField(stopOnInc){const T=S.trip;let g=0;const q=crewJudgement();
 // Rank decides who does what on a trip.
 function beginTrip(t,ids){startTrip(t,ids);const T=S.trip;
  if(S.rank===0){T.admin=true;T.done={};T.mobDays=MOB_DAYS-2}
- if(S.rank===2){autoMob();fly()}}
-function needsDebrief(t){return S.rank===1||S.rank>=3||(S.rank===2&&t.result.rec>0)}
+ if(isHSE()){autoMob();fly()}}
+function needsDebrief(t){return S.rank===1||S.rank>=3||(isHSE()&&t.result.rec>0)}
 function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrips++;S.rankRec=(S.rankRec||0)+r.rec;S.stats.trips++;S.stats.rec+=r.rec;
  if(S.rank===0)S.board=clamp(S.board+((r.ready??100)-80)/2.5+(r.stars-3)-4*(r.breaches||0));
  if(S.rank===1){const est=estCost(t),ov=r.cost-est;S.board=clamp(S.board+(r.stars-3)*5-r.rec*4-3*(r.breaches||0)+(ov<=0?(r.stars>=3?2:0):-Math.min(8,ov/est*20)))}
- if(S.rank===2)S.board=clamp(S.board+(r.rec===0?5:-7*r.rec));
+ if(isHSE())S.board=clamp(S.board+(r.rec===0?5:-7*r.rec));
+ if(isDept()){const est=estCost(t),ov=r.cost-est;S.board=clamp(S.board+(r.stars-3)*4-r.rec*3+(ov<=0?(r.stars>=3?2:0):-Math.min(6,ov/est*15)))}
  const rv=rank().review;if(typeof rv==='number'&&S.rankTrips>=rv)S.screen='review'}
-function promote(){const from=S.rank;S.rank++;S.board=S.rank>=3?60:50;S.rankTrips=0;S.rankRec=0;S.retries=0;S.career.push({rank:S.rank,at:`S${S.season} W${S.week}`});
- if(S.rank===2)S.budget=60000;
+function promote(branch,dept){const from=S.rank;S.rank++;if(S.rank===2){S.branch=branch||'hse';S.dept=dept||null}S.board=S.rank>=3?60:50;S.rankTrips=0;S.rankRec=0;S.retries=0;S.career.push({rank:S.rank,at:`S${S.season} W${S.week}`});
+ if(isHSE())S.budget=60000;
  if(S.rank===3){S.cash=80000;S.passes=0;S.tenders=S.tenders||[];S.trips.filter(t=>!t.result&&t.wk>S.week+6).forEach((t,i)=>{if(i%2===0){S.trips=S.trips.filter(x=>x!==t);S.tenders.push(toTender(t))}})}
  if(S.rank===4)S.dirSeasons=0;
+ if(isDept()){S.deptWins=0;const types=DEPTS[S.dept].types;S.trips=S.trips.filter(t=>t.result||(types.includes(t.type)&&t.wk>S.week));S.tenders=[];
+  const extra=genSeasonTrips(types).filter(t=>t.wk>S.week+4);S.tenders=extra.map(toTender)}
  mail({from:rank().boss,face:rank().face,subj:`You're the ${rank().n}`,body:rank().intro});log(`Promoted to ${rank().n}.`)}
 // Reviews for trip-counted ranks (Admin, Coordinator).
-function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if((S.retries||0)>=2&&b<65&&!(S.rank===2&&(S.rankRec||0)<=SAFETY_LIMIT&&b>=65))return 'sack';if(S.rank===2&&(S.rankRec||0)>SAFETY_LIMIT)return 'again';return b>=65?'promote':'again'}
+function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if(isDept()&&(S.deptWins||0)<2)return (S.retries||0)>=2?'sack':'again';if((S.retries||0)>=2&&b<65&&!(isHSE()&&(S.rankRec||0)<=SAFETY_LIMIT&&b>=65))return 'sack';if(isHSE()&&(S.rankRec||0)>SAFETY_LIMIT)return 'again';return b>=65?'promote':'again'}
 
 // ---------- Director: strategy ----------
 const STRAT=[
@@ -1611,7 +1620,8 @@ function freeWeek(pref){let wk=Math.max(S.week+3,Math.min(SEASON_WEEKS-2,pref));
 function toTender(t){return {id:'td'+(++S.tripSeq),trip:{...t,result:null},opens:Math.max(S.week,t.wk-7),closes:Math.max(S.week+2,t.wk-3),req:pick(Object.keys(REQS)),
  comp:Math.round(t.val*(.88+R()*.24)),rivals:[0,1].map(()=>({name:pick(RIVALS),score:Math.round(61+R()*16)})),prop:null,sent:false}}
 function tenderise(trips){const keep=[],tenders=[];trips.forEach((t,i)=>{if(i%2===0)keep.push(t);else tenders.push(toTender(t))});
- for(let i=0;i<5;i++){const pl=pick(TRIP_GEN.places),k=pick(TRIP_GEN.kinds);const t=mkTrip({wk:rint(8,42),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]});tenders.push(toTender(t))}
+ const kinds=isDept()?TRIP_GEN.kinds.filter(k=>DEPTS[S.dept].types.includes(k.type)):TRIP_GEN.kinds;
+ for(let i=0;i<5;i++){const pl=pick(TRIP_GEN.places),k=pick(kinds);const t=mkTrip({wk:rint(8,42),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]});tenders.push(toTender(t))}
  S.tenders=tenders.sort((a,b)=>a.closes-b.closes);return keep}
 function newProp(td){const n=td.trip.need.field+td.trip.need.admin;return {team:[],lead:'',method:'standard',writer:'',plan:false,fast:false,price:'market',lunch:false,call:false}}
 function propDays(td,p){return Math.max(2,td.trip.days+METHODS.find(m=>m.id===p.method).dd)}
@@ -1620,7 +1630,7 @@ function propScores(td,p){const t=td.trip,c=t.client,tm=p.team.map(staff).filter
  let team=tm.length?avg(tm.map(s=>s.field))*4+avg(tm.map(s=>s.rel))*1.2:0;if(lead&&lead.field>=15)team+=12;const fam=tm.some(s=>(s.clients||{})[c]);if(fam)team+=8;
  if(tm.length<t.need.field+t.need.admin)team*=tm.length/(t.need.field+t.need.admin);
  if(rq==='senior'&&!(lead&&lead.field>=15))team=Math.min(team,40);if(rq==='local'&&!fam)team=Math.min(team,45);
- const w=staff(p.writer),wa=w?w.admin:10;let method=METHODS.find(m=>m.id===p.method).base*(.6+wa/50)+(p.fast?10:0);if(rq==='fast'&&!p.fast)method=Math.min(method,45);
+ const wa=td.q??10;let method=METHODS.find(m=>m.id===p.method).base*(.6+wa/50)+(p.fast?10:0);if(rq==='fast'&&!p.fast)method=Math.min(method,45);
  let safety=62-S.recordables*12+(F('iso')?15:0)+(p.plan?15:0)+(F('hse')?5:0);if(rq==='iso'&&!F('iso'))safety-=25;if(rq==='recs'&&S.recordables>0)safety-=20;
  const price=70+(td.comp-propPrice(td,p))/td.comp*140;
  return {team:Math.round(clamp(team)),method:Math.round(clamp(method)),safety:Math.round(clamp(safety)),price:Math.round(clamp(price))}}
@@ -1628,25 +1638,53 @@ function propTotal(td,p){const s=propScores(td,p),wt=WEIGHTS[td.trip.client];let
  tot+=(S.clientRep[td.trip.client]-60)/5+(p.lunch?2:0)+(p.call?1:0);return Math.round(tot*10)/10}
 function submitProp(tid){const td=S.tenders.find(x=>x.id===tid);if(!td||td.sent||!td.prop)return '';const p=td.prop;if(!p.team.length)return 'Name a team first.';
  td.sent=true;if(p.lunch){S.cash-=400;S.clientRep[td.trip.client]=clamp(S.clientRep[td.trip.client]+1)}if(p.plan)S.cash-=1500;
- const w=staff(p.writer);if(w&&!S.busy.includes(w.id)){S.busy.push(w.id);bumpStat(w,'cond',-10)}
- log(`Proposal submitted: ${td.trip.name}${w?` (written by ${w.name})`:''}.`);return 'Submitted. Result the week it closes.'}
+ if(td.writer==='me'&&S.me.write<17)S.me.write++;const w=staff(td.writer);
+ log(`Proposal submitted: ${td.trip.name}${w?` (drafted by ${w.name})`:td.writer==='me'?' (written by you)':''}.`);return 'Submitted. Result the week it closes.'}
+// Writer drafts, you review. Who writes shapes the draft.
+function assignWriter(tid,wid){const td=S.tenders.find(x=>x.id===tid);if(!td||td.sent||td.writer)return;const t=td.trip,need=t.need.field+t.need.admin;
+ if(wid==='me'){td.writer='me';td.q=S.me.write;td.draftWk=S.week;td.prop=newProp(td);return}
+ const w=staff(wid);if(!w)return;td.writer=wid;td.q=w.admin;td.draftWk=S.week+1;if(!S.busy.includes(wid))S.busy.push(wid);bumpStat(w,'cond',-8);
+ const p=newProp(td),av=S.staff.filter(x=>!x.temp),tr=x=>w.traits.includes(x);
+ let team=av.slice().sort((a,b)=>b.field-a.field);if(w.admin<9&&R()<.4)team=team.sort(()=>R()-.5);p.team=team.slice(0,need).map(x=>x.id);
+ p.lead=(tr('wants-promotion')&&p.team.includes(w.id))?w.id:(p.team.map(staff).sort((a,b)=>b.field-a.field)[0]||{}).id||'';
+ p.method=tr('over-prepares')||tr('sharp')?'extended':tr('cuts-corners')?'rapid':'standard';p.plan=tr('over-prepares')||(w.admin>=14&&WEIGHTS[t.client].safety>=25);
+ p.price=tr('veteran')||tr('allergic-to-forms')?'premium':tr('keen')?'sharp':'market';
+ const gets=w.admin>=12||R()<.5;p.fast=td.req==='fast'&&gets;if(td.req==='senior'&&!gets)p.lead='';
+ td.prop=p;log(`${w.name} is drafting the ${t.name} proposal.`)}
+function rewrite(tid){const td=S.tenders.find(x=>x.id===tid);if(!td||td.rewritten||td.writer==='me'||td.closes<=S.week+1)return '';const w=staff(td.writer);if(w&&!S.busy.includes(w.id))S.busy.push(w.id);
+ td.rewritten=true;td.q+=3;td.draftWk=S.week+1;td.readyMailed=false;return `Sent back. ${w?w.name:'The writer'} will have a better draft next week.`}
+function propIssues(td,p){const t=td.trip,wt=WEIGHTS[t.client],lead=staff(p.lead),out=[];const need=t.need.field+t.need.admin;
+ if(p.team.length<need)out.push(`Team is ${need-p.team.length} short.`);if(!p.lead)out.push('No lead named.');
+ if(td.req==='senior'&&!(lead&&lead.field>=15))out.push("Requirement not met: the lead needs Fieldcraft 15+.");
+ if(td.req==='fast'&&!p.fast)out.push("Requirement not met: they asked for the report within two weeks.");
+ if(td.req==='iso'&&!F('iso'))out.push("Requirement not met: we're not ISO 45001 certified. Nothing to do about that now.");
+ if(td.req==='recs'&&S.recordables>0)out.push("Requirement not met: we've had recordables this season.");
+ if(td.req==='local'&&!p.team.some(id=>(staff(id)?.clients||{})[t.client]))out.push("Requirement not met: nobody on the team has worked for them before.");
+ if(wt.price>=40&&p.price==='premium')out.push(`${CLIENTS[t.client]} weight price at ${wt.price}%. Premium is a big ask.`);
+ if(wt.method>=35&&p.method==='rapid')out.push(`They weight methodology at ${wt.method}%. Rapid will score poorly.`);
+ if(wt.safety>=25&&!p.plan)out.push(`Safety is ${wt.safety}% for them and there's no site-specific plan.`);
+ return out}
+
 function tenderWeekly(){if(!S.tenders)return;
  S.tenders.filter(td=>!td.announced&&td.opens<=S.week+1&&!td.done).forEach(td=>{td.announced=true;const t=td.trip;
   mail({from:CLIENTS[t.client],face:'client',subj:`Request for quote: ${t.name}`,body:`${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Closes week ${td.closes}. Requirement: ${REQS[td.req]}. Put a proposal together on the Tenders screen.`,opts:[{l:'Open the RFQ',e:{goto:td.id,out:'Opened.'}}]})});
+ S.tenders.filter(td=>td.writer&&td.writer!=='me'&&!td.sent&&!td.readyMailed&&S.week>=td.draftWk&&!td.done).forEach(td=>{td.readyMailed=true;const ws=staff(td.writer);
+  mail({from:ws?ws.name:'Writer',face:ws?ws.face:'colin',subj:`Draft for review: ${td.trip.name}`,body:`Draft's done. Closes week ${td.closes}. ${propIssues(td,td.prop).length?`It has ${propIssues(td,td.prop).length} thing${propIssues(td,td.prop).length>1?'s':''} you'll want to look at.`:'Looks clean.'}`,opts:[{l:'Review it',e:{goto:td.id,out:'Opened.'}}]})});
  S.tenders.filter(td=>!td.done&&td.closes<=S.week).forEach(td=>{td.done=true;const t=td.trip,c=CLIENTS[t.client];
-  if(!td.sent){log(`No proposal: ${t.name}.`);return}
+  if(!td.sent&&td.prop&&td.writer&&td.writer!=='me'&&S.week>=td.draftWk){td.sent=true;const ws=staff(td.writer);log(`Nobody reviewed ${t.name}. ${ws?ws.name:'The writer'} sent the draft as is.`)}
+  if(!td.sent){log(`No proposal: ${t.name}.`);if(isDept())S.board=clamp(S.board-3);return}
   const p=td.prop,mine=propTotal(td,p),s=propScores(td,p),best=td.rivals.slice().sort((a,b)=>b.score-a.score)[0];
   const rivalBoost=S.clientRep[t.client]<50?5:0;const win=mine>best.score+rivalBoost;
   const card=`Your score ${mine} (price ${s.price}, methodology ${s.method}, team ${s.team}, safety ${s.safety}). ${win?`Next best: ${best.name} on ${best.score+rivalBoost}.`:`Winner: ${best.name} on ${best.score+rivalBoost}.`}`;
   if(win){const wk=freeWeek(t.wk);if(wk==null){mail({from:c,face:'client',subj:`Won, but: ${t.name}`,body:`${card} But your calendar is full and you had to hand it back.`});S.clientRep[t.client]=clamp(S.clientRep[t.client]-5);return}
-   t.wk=wk;t.days=propDays(td,p);t.val=propPrice(td,p);t.won=true;t.prop={team:p.team.slice(),lead:p.lead};t.fast=p.fast;S.trips.push(t);S.trips.sort((a,b)=>a.wk-b.wk);
+   t.wk=wk;t.days=propDays(td,p);t.val=propPrice(td,p);t.won=true;t.prop={team:p.team.slice(),lead:p.lead};t.fast=p.fast;S.trips.push(t);if(isDept()){S.deptWins=(S.deptWins||0)+1;S.board=clamp(S.board+4)}S.trips.sort((a,b)=>a.wk-b.wk);
    mail({from:c,face:'client',subj:`Successful: ${t.name}`,body:`${card} PO for ${money(t.val)}. Mobilise week ${wk}, ${t.days} days. Cost budget ${money(estCost(t))}.${p.lead?` They expect ${staff(p.lead)?staff(p.lead).name:'your named lead'} to lead it.`:''}`});log(`Won: ${t.name} (${money(t.val)}).`)}
-  else{mail({from:c,face:'client',subj:`Unsuccessful: ${t.name}`,body:card});log(`Lost: ${t.name} to ${best.name}.`)}})}
+  else{if(isDept())S.board=clamp(S.board-1);mail({from:c,face:'client',subj:`Unsuccessful: ${t.name}`,body:card});log(`Lost: ${t.name} to ${best.name}.`)}})}
 // ---------- budget & variations ----------
 // Client-side causes make a variation easier to land.
 const CLIENT_CAUSE=['lostrep','fireban','threat','dust','nojha'];
 function overrun(t,T){return Math.round(T.cost-estCost(t))}
-function variationDue(t,T){return S.rank>=3&&overrun(t,T)>estCost(t)*.05}
+function variationDue(t,T){return (S.rank>=3||isDept())&&overrun(t,T)>estCost(t)*.05}
 function variation(i){const T=S.trip,t=tripById(T.id),over=overrun(t,T);if(T.varRes!=null)return;T.varRes=i;
  const cc=T.incUsed.some(k=>CLIENT_CAUSE.includes(INCIDENTS[k].id))||(T.travel||[]).some(x=>/camp has no record|Bumped/.test(x));
  const p=clamp(.3+(S.clientRep[t.client]-60)/100+(cc?.25:0)+(i===2?.2:0),.05,.9);
@@ -1656,7 +1694,7 @@ function variation(i){const T=S.trip,t=tripById(T.id),over=overrun(t,T);if(T.var
  else{S.clientRep[t.client]=clamp(S.clientRep[t.client]-5);T.varOut=`Variation rejected. "The PO is the PO." ${CLIENTS[t.client]} are a bit cooler on you.`}}
 // ---------- reports (GM+) ----------
 function officeCapacity(onTrip=[]){return S.staff.filter(s=>avail(s)&&!onTrip.includes(s.id)&&!s.temp).reduce((a,s)=>a+s.admin+s.field*.3,0)}
-function addReport(t,T){if(S.rank<3)return;const ret=Math.round(t.result.pay*RETENTION/100)*100;t.result.pay-=ret;S.revenue-=ret;S.cash-=ret;
+function addReport(t,T){if(S.rank<3&&!isDept())return;const ret=Math.round(t.result.pay*RETENTION/100)*100;t.result.pay-=ret;S.revenue-=ret;S.cash-=ret;
  S.reports=S.reports||[];S.reports.push({tid:t.id,name:t.name,client:t.client,due:S.week+(t.fast?2:t.days>6?4:3),work:t.days*14,done:0,ret,asked:false,late:0})}
 // Returns the share of office capacity spent on reports, so desk billables shrink by that much.
 function reportWeekly(onTrip){const open=(S.reports||[]).filter(r=>!r.delivered);if(!open.length)return 0;
@@ -1699,7 +1737,8 @@ function hud(){const t=nextTrip(),rk=rank();
  const who=`<div><b>${rk.n}</b>S${S.season} · wk ${Math.min(S.week,SEASON_WEEKS)}</div>`;
  const boss=`<div><b>${S.rank>=3?'Board':rk.boss+"'s confidence"}</b>${Math.round(S.board)}%${bar(S.board)}</div>`;
  if(S.rank<2)return `<div class="hud">${who}${boss}<div><b>Review</b>${S.rankTrips} / ${rk.review} trips</div>${next}</div>`;
- if(S.rank===2)return `<div class="hud">${who}${boss}<div><b>Recordables</b><span style="color:${S.recordables>S.target.safety?'var(--red)':'inherit'}">${S.recordables} / ${S.target.safety}</span></div><div><b>Safety budget</b>${money(S.budget)}</div>${next}</div>`;
+ if(isDept())return `<div class="hud">${who}${boss}<div><b>Review</b>${S.rankTrips} / 6 trips<div class="fine">${S.deptWins||0} / 2 tenders won</div></div><div><b>Recordables</b>${S.recordables}</div>${next}</div>`;
+ if(isHSE())return `<div class="hud">${who}${boss}<div><b>Recordables</b><span style="color:${S.recordables>S.target.safety?'var(--red)':'inherit'}">${S.recordables} / ${S.target.safety}</span></div><div><b>Safety budget</b>${money(S.budget)}</div>${next}</div>`;
  return `<div class="hud">${who}
  <div><b>Cash</b><span style="color:${S.cash<0?'var(--red)':'inherit'}">${money(S.cash)}</span></div>
  <div><b>Revenue</b>${money(S.revenue)}${bar(0,S.revenue/S.target.rev*100)}<div class="fine">of ${money(S.target.rev)}</div></div>
@@ -1710,7 +1749,7 @@ function hud(){const t=nextTrip(),rk=rank();
 const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
 const VIEW_LABEL={tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
 function nav(){if(!S||S.screen!=='game'){$('#nav').innerHTML=S&&S.screen==='trip'?'<p class="fine" style="padding:6px">On site. The office is closed.</p>':'';return}const tw=nextTrip()&&nextTrip().wk<=S.week;
- $('#nav').innerHTML=RANK_VIEWS[S.rank].map(k=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${VIEW_LABEL[k]}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
+ $('#nav').innerHTML=views().map(k=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${VIEW_LABEL[k]}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
  (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw?'<b>▶ Trip!</b>':'▶ Next week'}</button>`);
  $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;UI.sel=null;render()});
  $('#advance').onclick=()=>{sfx.click();advance()}}
@@ -1722,10 +1761,11 @@ function render(){save();nav();
  if(S.screen==='review')return reviewView();
  if(S.screen==='final')return finalView();
  if(S.screen==='testimonial')return testimonialView();
+ if(S.screen==='branch')return branchView();
  S.screen='game';nav();({office,squad,season,inbox,train,recruit,board,facilities,strategy,hr,tenders,proposal})[S.view]();faces()}
 
 function advance(){if(S.week>SEASON_WEEKS){if(S.rank<3){const b=S.board;newSeason();S.board=b;S.view='inbox';return render()}S.screen='end';return render()}
- const t=nextTrip();if(t&&t.wk<=S.week){if(S.rank===0||S.rank===2){beginTrip(t,autoPickTeam(t));UI.task=UI.job=null;S.screen='trip';return render()}S.screen='pick';S.pick=t.prop?t.prop.team.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin):[];return render()}
+ const t=nextTrip();if(t&&t.wk<=S.week){if(S.rank===0||isHSE()){beginTrip(t,autoPickTeam(t));UI.task=UI.job=null;S.screen='trip';return render()}S.screen='pick';S.pick=t.prop?t.prop.team.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin):[];return render()}
  weekTick();
  if(S.rank>=3&&S.board<18&&S.week>10){S.screen='end';S.midSack=true;sfx.bad();return render()}
  if(S.week>SEASON_WEEKS)S.view=S.rank>=3?'board':'office';
@@ -1750,10 +1790,10 @@ function seedInbox(){mail({from:'Fleet',face:'colin',subj:'Ute 3',body:'Ute 3 ha
 // ---------- office ----------
 function office(){const t=nextTrip(),wk=S.week;
  const watch=S.staff.filter(s=>s.contract<=8||s.morale<40||s.inj||s.cond<55).map(s=>`<p>· ${s.name}: ${[s.contract<=8&&!s.temp?`contract ends in ${s.contract} wk`:'',s.morale<40?'morale low':'',s.inj?`injured ${s.inj} wk`:'',s.cond<55?`condition ${s.cond}%`:''].filter(Boolean).join(', ')}</p>`).join('');
- screen.innerHTML=`${hud()}<h2>Office — season ${S.season}, week ${Math.min(wk,SEASON_WEEKS)}</h2><p class="fine">You're the ${rank().n}. ${ROLE_LINE[S.rank]}</p>
+ screen.innerHTML=`${hud()}<h2>Office — season ${S.season}, week ${Math.min(wk,SEASON_WEEKS)}</h2><p class="fine">You're the ${rank().n}. ${isDept()?`You run ${DEPTS[S.dept].n}: win the work, deliver it inside the PO, get the reports out on time.`:ROLE_LINE[S.rank]}</p>
  <div class="cols"><div>
   <h3>This week</h3>
-  ${wk>SEASON_WEEKS?'<p>Season over. Board review is waiting.</p>':t&&t.wk<=wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week: ${t.days} days for ${CLIENTS[t.client]}. Hit Trip to ${S.rank===0?'start chasing paperwork':S.rank===2?'send them out':'pick the team'}.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}, ${t.days} days, needs ${t.need.field} field + ${t.need.admin} admin).</p>`:'<p>No trips left. Desk work until the season ends.</p>'}
+  ${wk>SEASON_WEEKS?'<p>Season over. Board review is waiting.</p>':t&&t.wk<=wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week: ${t.days} days for ${CLIENTS[t.client]}. Hit Trip to ${S.rank===0?'start chasing paperwork':isHSE()?'send them out':'pick the team'}.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}, ${t.days} days, needs ${t.need.field} field + ${t.need.admin} admin).</p>`:'<p>No trips left. Desk work until the season ends.</p>'}
   ${S.promise&&!S.promise.gone?`<p class="claim">Promised ${CLIENTS[S.promise.client]} that ${staff(S.promise.id)?staff(S.promise.id).name:'someone'} goes on their next job.</p>`:''}
   ${unread()?`<p>${unread()} unread in the inbox.</p>`:''}
   ${S.rank>=3?`<h3>Money</h3><p>Wages ${money(S.staff.reduce((a,s)=>a+s.wage,0))}/week. Desk billables this season ${money(S.desk)}. Facilities ${money(facUpkeep()+stratUpkeep())}/week.</p>`:''}
@@ -1885,7 +1925,7 @@ function tripView(){const T=S.trip;if(!T){S.screen='game';return render()}const 
    <div class="tbar">${(open.length&&T.mobDays>0)||!booked?'<button class="btn" id="delegate">Delegate the rest</button>':''}<button class="btn big" id="fly" ${booked||S.rank>=3?'':'disabled'}>▶ ${!booked&&S.rank<3?'BOOK THE TRAVEL FIRST':open.length?(T.mobDays>0?'FLY NOW':'OUT OF TIME. FLY.'):'FLY'}</button></div>
    ${open.length?'<p class="fine">Skipping a task can come back to bite on site.</p>':''}${!booked&&S.rank>=3?'<p class="fine">Anything unbooked, the admin books in a hurry.</p>':''}`}}
  else if(T.phase==='field'){const jobs=T.jobs[T.day-1]||[];const travel=T.day===1&&T.travel&&T.travel.length&&!T.travelSeen?`<div class="res">${T.travel.map(esc).join('<br>')}</div>`:'';
-  if(S.rank===2){body=`${travel}<h3>Day ${T.day} of ${t.days}</h3><p class="fine">The coordinator's running the trip. You get the radio call when something happens.</p><div class="log">${T.log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join('')}</div><div class="tbar"><button class="btn big" id="hsego">▶ CONTINUE</button></div>`}
+  if(isHSE()){body=`${travel}<h3>Day ${T.day} of ${t.days}</h3><p class="fine">The coordinator's running the trip. You get the radio call when something happens.</p><div class="log">${T.log.slice(-8).map(l=>`<div>${esc(l)}</div>`).join('')}</div><div class="tbar"><button class="btn big" id="hsego">▶ CONTINUE</button></div>`}
   else if(UI.job!=null){body=`<h3>Day ${T.day}: ${esc(jobs[UI.job])}. Who's on it?</h3><div class="crew">${team().map(s=>{const ok=canWork(s);return `<button class="btn card" data-s="${s.id}" ${ok?'':'disabled'}>${scv(s)}<span>${s.name}</span><span class="fine">Fld ${s.field} · Rel ${s.rel}</span>${cbar(s.cond)}${s.inj?'<span class="inj">INJURED</span>':!ok?'<span class="fine">done a job today</span>':''}</button>`}).join('')}</div><div class="tbar"><button class="btn" id="back">◀ Back</button></div>`}
   else{const allDone=!dayJobsOpen().length;
    body=`${travel}${last}<h3>Day ${T.day} of ${t.days}</h3>
@@ -1928,7 +1968,7 @@ function debriefView(){const T=S.trip,t=tripById(T.id),r=t.result,d=DEBRIEF[T.de
 // ---------- season end ----------
 function endView(){$('#nav').innerHTML='';
  if(S.midSack){S.final='sacked';S.screen='final';return render()}
- if(S.rank===2){const hr=S.rankRec||0,ok=hr<=S.target.safety&&S.board>=55&&S.rankTrips>=8,sack=S.board<30;
+ if(isHSE()){const hr=S.rankRec||0,ok=hr<=S.target.safety&&S.board>=55&&S.rankTrips>=8,sack=S.board<30;
   screen.innerHTML=`${hud()}<h1>${ok?'SAFETY SEASON: PASSED':sack?'SAFETY SEASON: FAILED':'SAFETY SEASON: NOT YET'}</h1>${talk('colin','Colin',`${hr} recordable${hr===1?'':'s'} on your watch this season, against a limit of ${S.target.safety}. My confidence in you: ${Math.round(S.board)}%.<br><br>${ok?"I'm moving to head office and I want you in my chair. General Manager.":sack?"It's not working. I'm sorry.":S.rankTrips<8?`You've only had ${S.rankTrips} trips in the job. Give me a full season.`:'Another season in safety. Get the numbers down.'}`)}<div class="tbar"><button class="btn big" id="go">${ok?'▶ BECOME GENERAL MANAGER':sack?'▶ CLEAR YOUR DESK':'▶ ANOTHER SEASON'}</button></div>`;faces();(ok?sfx.good:sfx.bad)();
   $('#go').onclick=()=>{if(sack){S.final='sacked';S.screen='final';return render()}const b=S.board;newSeason();S.board=b;if(ok)promote();S.testSeen=false;S.screen='game';S.view='inbox';render()};return status('Season over.')}
  const v=seasonVerdict();
@@ -1974,7 +2014,7 @@ function bookingsPanel(){const T=S.trip,t=tripById(T.id),n=T.team.length,r=CLIEN
 function bindBookings(){screen.querySelectorAll('[data-bk]').forEach(b=>b.onclick=()=>{sfx.click();book(b.dataset.bk,b.dataset.bo);render()})}
 
 // ---------- facilities ----------
-function facilities(){const hse=S.rank===2;const list=FAC.filter(f=>!hse||HSE_FAC.includes(f.id));const cats=[...new Set(list.map(f=>f.cat))];
+function facilities(){const hse=isHSE();const list=FAC.filter(f=>!hse||HSE_FAC.includes(f.id));const cats=[...new Set(list.map(f=>f.cat))];
  screen.innerHTML=`${hud()}<h2>Facilities</h2>
  <p class="fine">${hse?`Safety budget: ${money(S.budget)}. Running costs come out of the company's pocket, not yours.`:`Running costs: ${money(facUpkeep()+stratUpkeep())}/week. Over $40,000 needs the board at 55%; over $100,000 needs 65%.`}</p>
  ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}
@@ -2000,7 +2040,7 @@ function strategy(){const v=companyValue();
 // ---------- HR file ----------
 const HSE_HR=['investigate','wait','showcause','support','nosupport','summary','consider','lastchance','drop'];
 function hr(){const s=staff(UI.hr);if(!s){S.view='squad';return render()}const c=s.hr;
- let acts=hrActions(s);if(S.rank===2)acts=(c&&c.path!=='misc')?[{id:'wait',l:"Performance cases belong to the GM",ok:false,why:''}]:acts.filter(a=>HSE_HR.includes(a.id));
+ let acts=hrActions(s);if(isHSE())acts=(c&&c.path!=='misc')?[{id:'wait',l:"Performance cases belong to the GM",ok:false,why:''}]:acts.filter(a=>HSE_HR.includes(a.id));
  const stepName=c?({perf:['','First warning issued','Improvement plan','Plan failed','Final warning issued','Show-cause meeting'],misc:['','Stood down, investigating','Substantiated','','','Show-cause meeting'],red:['','Consultation','Consultation done']}[c.path][c.step]||''):'No open case';
  screen.innerHTML=`${hud()}<h2>HR file: ${s.name}</h2>
  ${talk('deb','Deb<br>HR',esc(UI.hrMsg||(c?`Current step: ${stepName}.`:`What's the issue with ${s.name}? Everything goes through me.`)))}
@@ -2018,10 +2058,10 @@ function hr(){const s=staff(UI.hr);if(!s){S.view='squad';return render()}const c
 // ---------- promotion review (Admin, Coordinator) ----------
 function reviewView(){$('#nav').innerHTML='';const o=reviewOutcome(),rk=rank();
  const next=RANKS[S.rank+1];
- const body=o==='sack'&&(S.retries||0)>=2&&S.board>=30?`That's three reviews and it hasn't come good. I'm going to have to let you go.`:o==='promote'?`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. I've spoken to Colin. There's a ${next.n} job with your name on it.`:o==='sack'?`${S.rankTrips} trips and it hasn't worked. Confidence ${Math.round(S.board)}%. I'm going to have to let you go. Deb has the paperwork.`:S.rank===2&&(S.rankRec||0)>SAFETY_LIMIT?`${S.rankRec} recordables on your watch. The limit is ${SAFETY_LIMIT}. Two more trips, and get that number down.`:`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. Not bad, not there. Two more trips and we'll talk again.`;
+ const body=o==='sack'&&(S.retries||0)>=2&&S.board>=30?`That's three reviews and it hasn't come good. I'm going to have to let you go.`:o==='promote'?`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. I've spoken to Colin. There's a ${next.n} job with your name on it.`:o==='sack'?`${S.rankTrips} trips and it hasn't worked. Confidence ${Math.round(S.board)}%. I'm going to have to let you go. Deb has the paperwork.`:isDept()&&(S.deptWins||0)<2?`${S.rankTrips} jobs delivered, but only ${S.deptWins||0} tender${S.deptWins===1?'':'s'} won. I need to see you win work. Two more trips.`:isHSE()&&(S.rankRec||0)>SAFETY_LIMIT?`${S.rankRec} recordables on your watch. The limit is ${SAFETY_LIMIT}. Two more trips, and get that number down.`:`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. Not bad, not there. Two more trips and we'll talk again.`;
  screen.innerHTML=`<h1>PERFORMANCE REVIEW</h1><h2>${rk.n} · S${S.season} W${S.week}</h2>${talk(rk.face,`${rk.boss}<br>${rk.bossRole}`,esc(body))}
  <div class="tbar"><button class="btn big" id="rv">${o==='promote'?`▶ BECOME ${next.n.toUpperCase()}`:o==='sack'?'▶ CLEAR YOUR DESK':'▶ BACK TO WORK'}</button></div>`;faces();(o==='promote'?sfx.good:o==='sack'?sfx.bad:sfx.meh)();
- $('#rv').onclick=()=>{if(o==='promote'){if(S.rank===2)S.cash=80000;promote();S.screen='game';S.view='inbox'}else if(o==='sack'){S.final='sacked';S.screen='final'}else{S.retries=(S.retries||0)+1;S.rankTrips=Math.max(0,rk.review-2);if(S.rank===2)S.rankRec=0;S.screen='game'}render()};status('Review.')}
+ $('#rv').onclick=()=>{if(o==='promote'){if(S.rank===1){S.screen='branch';return render()}if(S.rank===2)S.cash=80000;promote();S.screen='game';S.view='inbox'}else if(o==='sack'){S.final='sacked';S.screen='final'}else{S.retries=(S.retries||0)+1;S.rankTrips=Math.max(0,rk.review-2);if(isHSE())S.rankRec=0;S.screen='game'}render()};status('Review.')}
 
 // ---------- career ending ----------
 function finalView(){$('#nav').innerHTML='';S.over=true;save();const kind=S.final;const v=companyValue();
@@ -2042,25 +2082,28 @@ function finalView(){$('#nav').innerHTML='';S.over=true;save();const kind=S.fina
 function tenders(){const open=(S.tenders||[]).filter(td=>td.announced&&!td.done),soon=(S.tenders||[]).filter(td=>!td.announced&&!td.done),past=(S.tenders||[]).filter(td=>td.done&&td.sent).slice(-6).reverse();
  const wline=c=>{const w=WEIGHTS[c];return `Price ${w.price}% · Method ${w.method}% · Team ${w.team}% · Safety ${w.safety}%`};
  screen.innerHTML=`${hud()}<h2>Tenders</h2><p class="fine">Clients send a request for quote. You put a proposal together: team, methodology, safety, price. They score it against the other bidders using their own weightings.</p>
- ${open.length?open.map(td=>{const t=td.trip;const st=td.sent?'<span class="claim">Submitted</span>':td.prop&&td.prop.team.length?'Draft':'Not started';
+ ${open.length?open.map(td=>{const t=td.trip;const ws=staff(td.writer),drafting=td.writer&&td.writer!=='me'&&S.week<td.draftWk;
+  const st=td.sent?'<span class="claim">Submitted</span>':drafting?`${ws?ws.name:'Writer'} drafting, ready week ${td.draftWk}`:td.writer?(td.writer==='me'?'You are writing it':'<span class="claim">Draft ready for review</span>'):'No writer assigned';
   return `<div class="mail"><div class="from">${CLIENTS[t.client]} · closes week ${td.closes} · ${st}</div><b>${esc(t.name)}</b>
   <div class="fine">${t.days} days · ${t.need.field} field + ${t.need.admin} admin · requirement: ${REQS[td.req]}</div><div class="fine">${wline(t.client)}</div>
-  <div class="row" style="margin-top:6px"><button class="btn sm" data-prop="${td.id}">${td.sent?'View proposal':'Work on proposal'}</button></div></div>`}).join(''):'<p class="fine">No open requests for quote.</p>'}
+  <div class="row" style="margin-top:6px">${!td.writer&&!td.sent?`<label class="fine">Writer: <select id="wr-${td.id}">${S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>b.admin-a.admin).map(s=>`<option value="${s.id}">${s.name} · Admin ${s.admin}${s.traits[0]?' · '+s.traits[0]:''}</option>`).join('')}</select></label><button class="btn sm" data-assign="${td.id}">Assign (out for a week)</button>${isDept()?`<button class="btn sm" data-self="${td.id}">Write it yourself (writing ${S.me.write})</button>`:''}`:drafting?'':`<button class="btn sm" data-prop="${td.id}">${td.sent?'View proposal':td.writer==='me'?'Work on it':'Review the draft'}</button>`}</div></div>`}).join(''):'<p class="fine">No open requests for quote.</p>'}
  ${soon.length?`<h3>Expected soon</h3>${soon.slice(0,5).map(td=>`<p class="fine">Around week ${td.opens}: ${esc(td.trip.name)} (${CLIENTS[td.trip.client]})</p>`).join('')}`:''}
  ${past.length?`<h3>Results</h3>${past.map(td=>`<p class="fine">${td.trip.won?'<span class="stat hi">Won</span>':'<span class="stat lo">Lost</span>'} · ${esc(td.trip.name)} · you scored ${propTotal(td,td.prop)}</p>`).join('')}`:''}
  ${!(S.tenders||[]).length?"<p class=\"fine\">Tendering starts with the next season. This season's jobs were already won.</p>":''}`;
- screen.querySelectorAll('[data-prop]').forEach(x=>x.onclick=()=>{sfx.click();S.goto=x.dataset.prop;S.view='proposal';render()});status('Tenders.')}
-function proposal(){const td=(S.tenders||[]).find(x=>x.id===S.goto);if(!td){S.view='tenders';return render()}
+ screen.querySelectorAll('[data-prop]').forEach(x=>x.onclick=()=>{sfx.click();S.goto=x.dataset.prop;S.view='proposal';render()});
+ screen.querySelectorAll('[data-assign]').forEach(x=>x.onclick=()=>{const id=x.dataset.assign,sel=$('#wr-'+id);if(!sel||!sel.value)return;sfx.good();assignWriter(id,sel.value);render()});
+ screen.querySelectorAll('[data-self]').forEach(x=>x.onclick=()=>{sfx.click();assignWriter(x.dataset.self,'me');S.goto=x.dataset.self;S.view='proposal';render()});status('Tenders.')}
+function proposal(){const td=(S.tenders||[]).find(x=>x.id===S.goto);if(!td||!td.writer||(td.writer!=='me'&&S.week<td.draftWk&&!td.sent)){S.view='tenders';return render()}
  td.prop=td.prop||newProp(td);const p=td.prop,t=td.trip,wt=WEIGHTS[t.client],need=t.need.field+t.need.admin,ro=td.sent||td.done,sc=propScores(td,p);
  const days=propDays(td,p),price=propPrice(td,p),cost=estCost({...t,days});const dis=ro?'disabled':'';
  const staffCards=S.staff.filter(s=>!s.temp).map(s=>{const on=p.team.includes(s.id),fam=(s.clients||{})[t.client];return `<button class="btn card" data-tm="${s.id}" ${dis} style="${on?pressed:''}">${scv(s)}<span>${on?'● ':''}${s.name}${p.lead===s.id?' (lead)':''}</span><span class="fine">Fld ${s.field} · Rel ${s.rel}</span>${fam?`<span class="fine">worked for ${CLIENTS[t.client].split(' ')[0]}</span>`:''}</button>`}).join('');
- screen.innerHTML=`${hud()}<h2>Proposal: ${esc(t.name)}</h2>
+ screen.innerHTML=`${hud()}<h2>Proposal: ${esc(t.name)}</h2><p class="fine">${td.writer==='me'?`Written by you (writing ${td.q}).`:`Draft by ${staff(td.writer)?staff(td.writer).name:'your writer'} (writing ${td.q}${td.rewritten?', rewritten':''}). You're reviewing it: change what you like.`}</p>
  ${talk('client',CLIENTS[t.client],`Request for quote. ${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Proposals close week ${td.closes}.<br><br><b>Requirement:</b> ${REQS[td.req]}.<br><b>We score on:</b> price ${wt.price}%, methodology ${wt.method}%, team ${wt.team}%, safety ${wt.safety}%.`)}
- ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}
+ ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}${!ro&&propIssues(td,p).length?`<div class="res bad"><b>Review notes</b><br>${propIssues(td,p).map(esc).join('<br>')}</div>`:!ro?'<div class="res good">Nothing obviously wrong.</div>':''}
  <h3>1. Team (pick ${need}, then a lead)</h3><div class="crew">${staffCards}</div>
  ${p.team.length?`<div class="row" style="margin-top:6px"><label class="fine">Lead: <select id="lead" ${dis}><option value="">none named</option>${p.team.map(id=>staff(id)).filter(Boolean).map(s=>`<option value="${s.id}" ${p.lead===s.id?'selected':''}>${s.name} (Fld ${s.field})</option>`).join('')}</select></label></div>`:''}
  <h3>2. Methodology</h3><div class="row">${METHODS.map(m=>`<button class="btn sm" data-me="${m.id}" ${dis} style="${p.method===m.id?pressed:''}">${m.l}</button>`).join('')}</div><div class="fine">${METHODS.find(m=>m.id===p.method).d} Job becomes ${days} days.</div>
- <div class="row" style="margin-top:6px"><label class="fine">Written by: <select id="writer" ${dis}><option value="">you (Admin 10)</option>${S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>b.admin-a.admin).map(s=>`<option value="${s.id}" ${p.writer===s.id?'selected':''}>${s.name} (Admin ${s.admin}) · loses a week</option>`).join('')}</select></label>
+ <div class="row" style="margin-top:6px">
  <label class="fine"><input type="checkbox" id="fast" ${p.fast?'checked':''} ${dis}> Commit to the report within two weeks</label></div>
  <h3>3. Safety & quality</h3><p class="fine">Recordables this season: ${S.recordables}. ISO 45001: ${F('iso')?'yes':'no'}. HSE advisor: ${F('hse')?'yes':'no'}.</p>
  <label class="fine"><input type="checkbox" id="plan" ${p.plan?'checked':''} ${dis}> Site-specific safety plan ($1,500)</label>
@@ -2068,13 +2111,14 @@ function proposal(){const td=(S.tenders||[]).find(x=>x.id===S.goto);if(!td){S.vi
  <p class="fine">Cost budget at ${days} days: ${money(cost)}. Margin before wages at this price: ${money(price-cost)}.</p>
  <h3>Relationship</h3><div class="row"><label class="fine"><input type="checkbox" id="call" ${p.call?'checked':''} ${dis}> Ring them to talk through the scope</label><label class="fine"><input type="checkbox" id="lunch" ${p.lunch?'checked':''} ${dis}> Lunch before it closes ($400)</label></div>
  <h3>How it reads</h3><div class="hud"><div><b>Team (${wt.team}%)</b>${sc.team}${bar(sc.team)}</div><div><b>Method (${wt.method}%)</b>${sc.method}${bar(sc.method)}</div><div><b>Safety (${wt.safety}%)</b>${sc.safety}${bar(sc.safety)}</div><div><b>Price (${wt.price}%)</b>${ro?sc.price:'?'}<div class="fine">${ro?'':'depends on the other bids'}</div></div></div>
- <div class="tbar">${ro?'':`<button class="btn big" id="submit" ${p.team.length?'':'disabled'}>▶ SUBMIT PROPOSAL</button>`}<button class="btn" id="pback">◀ Tenders</button></div>`;faces();UI.msg=null;
+ <div class="tbar">${ro?'':`<button class="btn big" id="submit" ${p.team.length?'':'disabled'}>▶ SUBMIT PROPOSAL</button>${td.writer!=='me'&&!td.rewritten&&td.closes>S.week+1?'<button class="btn" id="rewrite">Send back for a rewrite</button>':''}`}<button class="btn" id="pback">◀ Tenders</button></div>`;faces();UI.msg=null;
  const sv=()=>{save();render()};
  screen.querySelectorAll('[data-tm]').forEach(b=>b.onclick=()=>{const id=b.dataset.tm;if(p.team.includes(id)){p.team=p.team.filter(x=>x!==id);if(p.lead===id)p.lead=''}else if(p.team.length<need)p.team.push(id);sfx.click();sv()});
  screen.querySelectorAll('[data-me]').forEach(b=>b.onclick=()=>{p.method=b.dataset.me;sfx.click();sv()});
  screen.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{p.price=b.dataset.pr;sfx.click();sv()});
  const bind=(id,k,chk)=>{const el=$('#'+id);if(el)el.onchange=()=>{p[k]=chk?el.checked:el.value;sv()}};
- bind('lead','lead');bind('writer','writer');bind('fast','fast',1);bind('plan','plan',1);bind('call','call',1);bind('lunch','lunch',1);
+ bind('lead','lead');bind('fast','fast',1);bind('plan','plan',1);bind('call','call',1);bind('lunch','lunch',1);
+ const rw=$('#rewrite');if(rw)rw.onclick=()=>{UI.msg=rewrite(td.id);sfx.meh();S.view='tenders';save();render()};
  const sb=$('#submit');if(sb)sb.onclick=()=>{UI.msg=submitProp(td.id);sfx.good();sv()};
  $('#pback').onclick=()=>{S.view='tenders';render()};status('Proposal.')}
 function variationView(){const T=S.trip,t=tripById(T.id),over=overrun(t,T);
@@ -2086,6 +2130,13 @@ function variationView(){const T=S.trip,t=tripById(T.id),over=overrun(t,T);
 function reportsPanel(){const rs=(S.reports||[]).filter(r=>!r.delivered);if(S.rank<3)return '';
  return `<h3>Reports due</h3>${rs.length?`<div class="twrap"><table><tr><th>Report</th><th>Client</th><th>Due</th><th>Progress</th><th>Retention</th></tr>${rs.map(r=>`<tr><td>${esc(r.name)}</td><td class="fine">${CLIENTS[r.client]}</td><td style="color:${S.week>r.due?'var(--red)':'inherit'}">wk ${r.due}${S.week>r.due?` (${S.week-r.due} late)`:''}</td><td>${Math.round(r.done/r.work*100)}%</td><td>${money(r.ret)}</td></tr>`).join('')}</table></div>`:'<p class="fine">Nothing outstanding.</p>'}
  <p class="fine">Office staff write reports between trips: Admin counts most. Time spent on reports comes out of desk billables. Clients hold ${Math.round(RETENTION*100)}% until the report lands.</p>`}
+
+function branchView(){$('#nav').innerHTML='';
+ screen.innerHTML=`<h1>WHICH WAY?</h1><h2>Mobilisation Coordinator · S${S.season} W${S.week}</h2>
+ ${talk('colin','Colin<br>General Manager',"You've earned a step up. Two roads. Safety: every incident comes to you, and you hold the safety budget. Or run a field department: win the work with proposals, then deliver it inside the PO. Either road leads to my chair eventually.")}
+ <div class="opts"><button class="btn" data-br="hse"><b>HSE Manager</b><br><span class="fine">Operations path. Incidents, training, safety gear, audits, misconduct investigations.</span></button>
+ ${Object.entries(DEPTS).map(([k,d])=>`<button class="btn" data-br="dept" data-dp="${k}"><b>${d.n} Manager</b><br><span class="fine">Field department. ${d.d} RFQs, proposals, budgets, reports.</span></button>`).join('')}</div>`;faces();sfx.ring();
+ screen.querySelectorAll('[data-br]').forEach(b=>b.onclick=()=>{sfx.good();promote(b.dataset.br,b.dataset.dp);S.screen='game';S.view='inbox';render()});status('Your call.')}
 </script>
 
 </body>
