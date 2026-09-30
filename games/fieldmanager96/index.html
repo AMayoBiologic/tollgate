@@ -46,7 +46,7 @@ p{margin:0 0 10px;max-width:62ch}
 .btn.sm{font-size:17px;padding:1px 8px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;font-size:19px}
-.hud div{border:1px dashed rgba(255,255,255,.35);padding:4px 8px;font-variant-numeric:tabular-nums}
+.hud>div{border:1px dashed rgba(255,255,255,.35);padding:4px 8px;font-variant-numeric:tabular-nums}
 .hud b{display:block;font-family:var(--font-head);font-size:8px;color:var(--sky);margin-bottom:4px}
 .bar{height:10px;background:#000;border:1px solid var(--screen-fg);margin-top:4px}
 .bar i{display:block;height:100%;background:var(--lime);transition:width .3s}
@@ -81,12 +81,27 @@ canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-
 .tag{font-family:var(--font-head);font-size:7px;padding:2px 5px;border:1px solid currentColor;margin-left:6px;vertical-align:middle}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}.bar i{transition:none}}
 @media (max-width:640px){body{font-size:18px}.body{grid-template-columns:1fr}.nav{grid-template-columns:repeat(3,1fr)}.nav .btn{font-size:16px;padding:3px 6px}.cols{grid-template-columns:1fr}.talk{grid-template-columns:72px 1fr}.talk canvas{width:72px;height:72px}}
+.tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.tasks .btn{white-space:normal;line-height:1.1}
+.tasks .btn.done{color:var(--win-dark);text-decoration:line-through}
+.tasks .btn.skip{color:var(--red);text-decoration:line-through}
+.crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.card{display:grid;justify-items:center;gap:2px;padding:6px 4px;text-align:center;line-height:1.05}
+.card canvas{width:56px;height:56px}
+.cbar{display:inline-block;width:46px;height:8px;background:#000;border:1px solid var(--dim);vertical-align:middle}
+.cbar i{display:block;height:100%;background:var(--lime)}.cbar i.warn{background:var(--amber)}.cbar i.bad{background:var(--red)}
+.inj{color:var(--red);font-family:var(--font-head);font-size:7px}
+.claim{color:var(--amber)}
+.qa{border-left:3px solid var(--sky);padding:4px 10px;margin:6px 0}
+.qa b{color:var(--sky)}
+.tbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+select{font-family:var(--font-body);font-size:18px}
 </style>
 </head>
 <body>
 
 <div class="win" role="application" aria-label="Field Manager 96">
-  <div class="tb"><span>FIELD MANAGER '96 — BIOLOGIC INTERACTIVE</span><span class="sp"></span><b>_</b><b>□</b><b>×</b></div>
+  <div class="tb"><span>FIELD MANAGER '96 — SUNDOWNER SOFTWORKS</span><span class="sp"></span><b>_</b><b>□</b><b>×</b></div>
   <div class="body">
     <div class="nav" id="nav"></div>
     <div class="screen scan" id="screen"></div>
@@ -96,20 +111,12 @@ canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-
 
 <script>
 /* =====================================================================
-   FIELD MANAGER '96 — BONES
-   A Football-Manager-style sim: you run the field office. Squad, season
-   of trips, training, recruitment, inbox, board.
-   ---------------------------------------------------------------------
-   TODO (grunt work, in priority order):
-   [1] runTrip(): replace the stat roll with the interactive mob+field
-       engine from mobilise95.html (excuse events keyed by trait, incidents).
-   [2] Inbox: ~40 event templates (client complaints, resignations, head
-       office edicts, rival offers, injuries, birthdays). Hooks below.
-   [3] Recruitment: applicant generator w/ bluffed CVs, interviews, refs.
-   [4] Training camp variants, fatigue and injuries across trips.
-   [5] Press conference / client review after each trip w/ multiple choice.
-   [6] Multi-season: contracts, ageing, retirement, Rusty's testimonial.
-   [7] Sound, intro, save slots.
+   FIELD MANAGER '96
+   Football-Manager-style sim of running a field office.
+   Files are concatenated at build: data1 (people, trips, excuses),
+   data2 (incidents, debriefs, inbox, camps, recruits), engine, ui.
+   Text tokens: {n}/{a} person, {he}{him}{his}{He}{His} their pronouns,
+   {o} another staff member, {b} second team member, {c} client.
    ===================================================================== */
 
 // ---------- audio ----------
@@ -118,7 +125,7 @@ function beep(f=880,d=.08,type='square',v=.05){try{if(muted)return;AC=AC||new (w
 const sfx={click:()=>beep(1200,.05),good:()=>{beep(660,.1);setTimeout(()=>beep(880,.1),100);setTimeout(()=>beep(1320,.18),200)},bad:()=>{beep(220,.25,'sawtooth');setTimeout(()=>beep(160,.35,'sawtooth'),200)},meh:()=>beep(440,.15,'triangle'),ring:()=>{for(let i=0;i<4;i++)setTimeout(()=>beep(i%2?1400:1100,.07),i*90)}};
 
 // ---------- pixel portraits ----------
-const PAL={'.':null,k:'#1a1420',s:'#e6b48a',t:'#c98a5c',h:'#5a3416',y:'#f2d16b',o:'#ff7a1a',b:'#2b6cb0',g:'#3b8a3b',w:'#ffffff',r:'#c0392b',p:'#8e44ad',n:'#333333',q:'#d9d9d9',c:'#00a3a3',m:'#d63384'};
+const PAL={'.':null,k:'#1a1420',s:'#e6b48a',t:'#c98a5c',d:'#8d5a3b',h:'#5a3416',y:'#f2d16b',o:'#ff7a1a',b:'#2b6cb0',g:'#3b8a3b',w:'#ffffff',r:'#c0392b',p:'#8e44ad',n:'#333333',q:'#d9d9d9',c:'#00a3a3',m:'#d63384',e:'#9a9a9a'};
 const FACES={
  rusty:['....oooo....','...oooooo...','..osssssso..','..ossssssso.','..sksssskso.','..ssssssss..','..sswwwsss..','...ssssss...','....ssss....','..yyyyyyyy..','.yyyyyyyyyy.','.yyy.yy.yyy.'],
  brooke:['...hhhhhh...','..hhhhhhhh..','..hssssssh..','..hsksskshh.','..hssssssh..','.hhssssssshh','.hhsssrsshhh','.hh.ssss.hhh','....ssss....','..bbbbbbbb..','.bbbbbbbbbb.','.bbb.bb.bbb.'],
@@ -129,245 +136,1368 @@ const FACES={
  jules:['...yyyyyy...','..yyyyyyyy..','..ysssssyy..','..ysksskyy..','..ysssssyy..','..yssssssy..','..ssrrrrss..','...ssssss...','....ssss....','..cccccccc..','.cccwwwwccc.','.ccc.cc.ccc.'],
  tran:['...kkkkkk...','..kkkkkkkk..','..kssssssk..','..sksssksss.','..ssssssss..','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..mmmmmmmm..','.mmmmmmmmmm.','.mmm.mm.mmm.'],
  craig:['....hhhh....','...hhhhhh...','..hssssssh..','..hsksskshh.','..hssssssh..','..ssssssss..','..ssrrrrss..','...ssssss...','....ssss....','..gggggggg..','.gggggggggg.','.ggg.gg.ggg.'],
- nadia:['...kkkkkk...','..kkkkkkkk..','.kkttttttkk.','.kktkttktkk.','.kkttttttkk.','.kkttttttkk.','.kktttrttkk.','.kk.tttt.kk.','....tttt....','..oooooooo..','.oooooooooo.','.ooo.oo.ooo.'],
- generic:['............','...ssssss...','..ssssssss..','..sksssskss.','..ssssssss..','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..qqqqqqqq..','.qqqqqqqqqq.','.qqq.qq.qqq.'],
+ radio:['.....k......','.....k......','...nnnnn....','..nnnnnnn...','..nqqqqqn...','..nqkqkqn...','..nqqqqqn...','..nnnnnnn...','..nrnnnrn...','..nnnnnnn...','..nkkkkkn...','..nnnnnnn...'],
+ client:['............','...eeeeee...','..essssssse.','..ssssssss..','..sksssskss.','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..wwwwwwww..','.wwwrrwwwww.','.www.ww.www.'],
 };
-function portrait(cv,key){const rows=FACES[key]||FACES.generic;const c=cv.getContext('2d');cv.width=12;cv.height=12;rows.forEach((r,y)=>[...r].forEach((ch,x)=>{const col=PAL[ch];if(col){c.fillStyle=col;c.fillRect(x,y,1,1)}}))}
+function genFace(){
+ const pick=a=>a[Math.floor(Math.random()*a.length)];
+ const H=pick(['h','k','y','o','n','e']),K=pick(['s','t','d']),W=pick(['b','g','o','c','m','r','p','q','y']),M=pick(['w','r']);
+ const style=Math.floor(Math.random()*5);
+ const tops=[['............','...HHHHHH...','..HSSSSSSH..'],['...HHHHHH...','..HHHHHHHH..','..HSSSSSSH..'],['....HHHH....','...HHHHHH...','..HSSSSSSH..'],['............','............','..SSSSSSSS..'],['..HHHHHHHH..','.HHHHHHHHHH.','.HHSSSSSSHH.']];
+ const long=style===4;
+ const mid=[long?'.HSkSSSSkSH.':'..SkSSSSkSS.',long?'.HSSSSSSSSH.':'..SSSSSSSS..',long?'.HSSSSSSSSH.':'..SSSSSSSS..','..SSMMMMSS..','...SSSSSS...','....SSSS....'];
+ const low=['..WWWWWWWW..','.WWWWWWWWWW.','.WWW.WW.WWW.'];
+ return [...tops[style],...mid,...low].map(r=>r.replace(/H/g,H).replace(/S/g,K).replace(/W/g,W).replace(/M/g,M));
+}
+function portrait(cv,face){const rows=Array.isArray(face)?face:(FACES[face]||FACES.colin);const c=cv.getContext('2d');cv.width=12;cv.height=12;rows.forEach((r,y)=>[...r].forEach((ch,x)=>{const col=PAL[ch];if(col){c.fillStyle=col;c.fillRect(x,y,1,1)}}))}
 
-// ---------- data: staff ----------
-// stats 1-20 (FM scale). traits drive which excuse pools fire in the trip engine (TODO [1]).
-// wage $/week. contract = weeks left. rel = reliability (does the task get done).
+// ---------- staff ----------
+// Stats 1-20 (FM scale). cond = match fitness 0-100, drains in the field. inj = weeks injured.
+// traits pick which excuse pools fire when a task check fails.
 const STAFF0=[
- {id:'rusty', name:'Rusty',   role:'Senior Ecologist',   face:'rusty', age:54, field:18, admin:4,  rel:9,  fit:8,  morale:70, wage:2400, contract:30, traits:['veteran','allergic-to-forms','snake-magnet']},
- {id:'brooke',name:'Brooke',  role:'Graduate Ecologist', face:'brooke',age:24, field:9,  admin:16, rel:15, fit:13, morale:80, wage:1500, contract:52, traits:['over-prepares','laminator','emails-clients']},
- {id:'dazza', name:'Dazza',   role:'Field Tech / Driver',face:'dazza', age:31, field:12, admin:3,  rel:7,  fit:16, morale:75, wage:1600, contract:20, traits:['loses-things','parking-fines','good-in-a-crisis']},
- {id:'priya', name:'Priya',   role:'Botanist',           face:'priya', age:36, field:17, admin:8,  rel:8,  fit:11, morale:85, wage:2100, contract:40, traits:['distractible','names-animals','finds-rare-things']},
- {id:'marcus',name:'Marcus',  role:'Subcontractor',      face:'marcus',age:44, field:11, admin:2,  rel:4,  fit:10, morale:100,wage:1900, contract:8,  traits:['unreachable','fishing','unbothered']},
- {id:'jules', name:'Jules',   role:'Zoologist',          face:'jules', age:29, field:14, admin:11, rel:13, fit:14, morale:65, wage:1900, contract:26, traits:['solid','wants-promotion']},
- {id:'tran',  name:'Tran',    role:'GIS / Data',         face:'tran',  age:27, field:5,  admin:18, rel:17, fit:7,  morale:70, wage:1700, contract:45, traits:['office-only','fixes-everything']},
- {id:'craig', name:'Craig',   role:'Seed Collector',     face:'craig', age:39, field:13, admin:6,  rel:12, fit:15, morale:60, wage:1650, contract:12, traits:['on-loan-from-seed','quiet']},
+ {id:'rusty', name:'Rusty', p:'he', role:'Senior Ecologist',   face:'rusty', age:54, field:18, admin:4,  rel:9,  fit:8,  morale:70, wage:2400, contract:30, traits:['veteran','allergic-to-forms','snake-magnet']},
+ {id:'brooke',name:'Brooke',p:'she',role:'Graduate Ecologist', face:'brooke',age:24, field:9,  admin:16, rel:15, fit:13, morale:80, wage:1500, contract:52, traits:['over-prepares','laminator','emails-clients']},
+ {id:'dazza', name:'Dazza', p:'he', role:'Field Tech / Driver',face:'dazza', age:31, field:12, admin:3,  rel:7,  fit:16, morale:75, wage:1600, contract:20, traits:['loses-things','hard-on-vehicles','parking-fines','cuts-corners','good-in-a-crisis']},
+ {id:'priya', name:'Priya', p:'she',role:'Botanist',           face:'priya', age:36, field:17, admin:8,  rel:8,  fit:11, morale:85, wage:2100, contract:40, traits:['distractible','names-animals','finds-rare-things']},
+ {id:'marcus',name:'Marcus',p:'he', role:'Subcontractor',      face:'marcus',age:44, field:11, admin:2,  rel:4,  fit:10, morale:100,wage:1900, contract:8,  traits:['unreachable','fishing','unbothered']},
+ {id:'jules', name:'Jules', p:'she',role:'Zoologist',          face:'jules', age:29, field:14, admin:11, rel:13, fit:14, morale:65, wage:1900, contract:26, traits:['solid','wants-promotion']},
+ {id:'tran',  name:'Tran',  p:'he', role:'GIS / Data',         face:'tran',  age:27, field:5,  admin:18, rel:17, fit:7,  morale:70, wage:1700, contract:45, traits:['office-only','fixes-everything']},
+ {id:'craig', name:'Craig', p:'he', role:'Seed Collector',     face:'craig', age:39, field:13, admin:6,  rel:12, fit:15, morale:60, wage:1650, contract:12, traits:['on-loan-from-seed','quiet']},
 ];
-// recruit market (TODO [3]: generate these)
-const MARKET0=[
- {id:'nadia', name:'Nadia',   role:'Ecologist',          face:'nadia', age:33, field:15, admin:12, rel:14, fit:12, morale:70, wage:2000, contract:52, traits:['ex-competitor','sharp'], cv:'Six years with a rival. Left "for family reasons". Reference is her brother.'},
- {id:'ben',   name:'Ben',     role:'Graduate',           face:'generic',age:22,field:6,  admin:9,  rel:11, fit:17, morale:90, wage:1300, contract:52, traits:['keen','no-licence'], cv:'Honours in frogs. Has never driven a manual. Very keen.'},
- {id:'shaz',  name:'Shaz',    role:'Field Tech',         face:'generic',age:47,field:14, admin:5,  rel:16, fit:12, morale:70, wage:1750, contract:26, traits:['ex-drilling','no-nonsense'], cv:'Twenty years on drill rigs. "Ran the camp." Tattoos of two of the seven wastes.'},
-];
+const TRAIT_INFO={
+ 'veteran':'Knows every site. Every site knows him. Hates change.',
+ 'allergic-to-forms':'Paperwork happens later, or never.',
+ 'snake-magnet':'Will pick it up.',
+ 'over-prepares':'Three of everything. Takes time.',
+ 'laminator':'Laminates. Everything.',
+ 'emails-clients':'Contacts the client directly, often.',
+ 'loses-things':'Sat phones, keys, gear. Somewhere.',
+ 'hard-on-vehicles':'Utes come back a different shape.',
+ 'parking-fines':'Has a legal thing. Not a bad one.',
+ 'cuts-corners':'Fast. Not always right.',
+ 'good-in-a-crisis':'Best person to have when it goes wrong.',
+ 'distractible':'Will stop for a plant.',
+ 'names-animals':'Every trap has a name.',
+ 'finds-rare-things':'Finds what the client hoped nobody would.',
+ 'unreachable':'Phone is a suggestion.',
+ 'fishing':'The tide decides.',
+ 'unbothered':'Nothing is urgent.',
+ 'solid':'Gets it done.',
+ 'wants-promotion':'Would like "Senior" in the title.',
+ 'office-only':'Prefers air-con and 4G.',
+ 'fixes-everything':'Rebuilds broken things, sometimes instead of the task.',
+ 'on-loan-from-seed':'The Seed team want him back.',
+ 'quiet':'Does the job. Tells no one.',
+ 'keen':'Does extra. Asks nobody.',
+ 'no-licence':'Needs a lift.',
+ 'ex-drilling':'Tells site supervisors they are wrong.',
+ 'ex-competitor':'Knows how the other mob does it.',
+ 'sharp':'Notices things.',
+ 'no-nonsense':'Runs a tight camp.',
+};
 
-// ---------- data: season ----------
+// ---------- clients & trips ----------
 const CLIENTS={newm:'Newmont-ish',s32:'South of 32',rio:'Big Red Iron',dept:'The Department',lith:'Lithium Startup'};
+// val per person-day ~ $2,600 (includes reporting). hazard 0-3 lifts incident odds.
 const TRIPS0=[
- {wk:2, client:'rio', name:'Baseline fauna, Pilbara',      days:5, need:{field:3,admin:1}, val:38000},
- {wk:5, client:'newm',name:'Targeted flora, Boddington',   days:4, need:{field:2,admin:1}, val:24000},
- {wk:8, client:'lith',name:'Seed collection, Goldfields',  days:6, need:{field:3,admin:0}, val:31000},
- {wk:11,client:'s32', name:'Bat & nocturnal, Worsley',     days:5, need:{field:3,admin:1}, val:35000},
- {wk:14,client:'dept',name:'Threatened species, Kimberley',days:8, need:{field:4,admin:1}, val:62000},
- {wk:18,client:'rio', name:'Trapping, Pilbara wet season', days:6, need:{field:4,admin:1}, val:48000},
- {wk:22,client:'newm',name:'Weed survey, Boddington',      days:3, need:{field:2,admin:0}, val:15000},
- {wk:26,client:'lith',name:'Subterranean fauna, Goldfields',days:7,need:{field:3,admin:2}, val:55000},
- {wk:30,client:'s32', name:'Rehab monitoring, Worsley',    days:4, need:{field:2,admin:1}, val:22000},
- {wk:34,client:'dept',name:'Marine turtles, Ningaloo',     days:9, need:{field:4,admin:1}, val:70000},
- {wk:38,client:'rio', name:'Dry season fauna, Pilbara',    days:6, need:{field:4,admin:1}, val:50000},
- {wk:42,client:'newm',name:'Year-end audit, Boddington',   days:2, need:{field:1,admin:2}, val:12000},
+ {wk:2, client:'rio', name:'Baseline fauna, Pilbara',       type:'fauna', days:5, need:{field:3,admin:1}, hazard:2},
+ {wk:5, client:'newm',name:'Targeted flora, Boddington',    type:'flora', days:4, need:{field:2,admin:1}, hazard:0},
+ {wk:8, client:'lith',name:'Seed collection, Goldfields',   type:'seed',  days:6, need:{field:3,admin:0}, hazard:2},
+ {wk:11,client:'s32', name:'Bat & nocturnal, Worsley',      type:'bats',  days:5, need:{field:3,admin:1}, hazard:1},
+ {wk:14,client:'dept',name:'Threatened species, Kimberley', type:'fauna', days:8, need:{field:4,admin:1}, hazard:3},
+ {wk:18,client:'rio', name:'Trapping, Pilbara wet season',  type:'fauna', days:6, need:{field:4,admin:1}, hazard:3},
+ {wk:22,client:'newm',name:'Weed survey, Boddington',       type:'flora', days:3, need:{field:2,admin:0}, hazard:0},
+ {wk:26,client:'lith',name:'Subterranean fauna, Goldfields',type:'subs',  days:7, need:{field:3,admin:2}, hazard:2},
+ {wk:30,client:'s32', name:'Rehab monitoring, Worsley',     type:'flora', days:4, need:{field:2,admin:1}, hazard:1},
+ {wk:34,client:'dept',name:'Marine turtles, Ningaloo',      type:'marine',days:9, need:{field:4,admin:1}, hazard:2},
+ {wk:38,client:'rio', name:'Dry season fauna, Pilbara',     type:'fauna', days:6, need:{field:4,admin:1}, hazard:2},
+ {wk:42,client:'newm',name:'Year-end audit, Boddington',    type:'flora', days:2, need:{field:1,admin:2}, hazard:0},
 ];
-const SEASON_WEEKS=46;
-const BOARD0={safety:2,revenue:400000,clients:4}; // max recordables, min revenue, min clients still talking to us
+const TRIP_GEN={
+ places:[['Pilbara','rio',2],['Pilbara','s32',2],['Boddington','newm',0],['Goldfields','lith',2],['Worsley','s32',1],['Kimberley','dept',3],['Ningaloo','dept',2],['Mid West','lith',1],['Great Western Woodlands','dept',1],['Wheatbelt','newm',1]],
+ kinds:[
+  {type:'fauna',names:['Baseline fauna','Targeted fauna','Trapping','Dry season fauna','Wet season fauna'],days:[5,8],field:[3,4],admin:[1,1]},
+  {type:'flora',names:['Targeted flora','Vegetation mapping','Weed survey','Rehab monitoring'],days:[3,6],field:[2,3],admin:[0,1]},
+  {type:'seed',names:['Seed collection'],days:[4,7],field:[3,3],admin:[0,0]},
+  {type:'bats',names:['Bat & nocturnal','Ghost bat survey'],days:[4,6],field:[3,3],admin:[1,1]},
+  {type:'subs',names:['Subterranean fauna'],days:[5,7],field:[2,3],admin:[2,2]},
+  {type:'marine',names:['Marine turtles','Shorebird counts'],days:[6,9],field:[3,4],admin:[1,1]},
+ ],
+};
+const JOBS={
+ fauna:['Open trap lines','Trap check & processing','Spotlighting transect','Camera traps out','Habitat assessment','Pitfall check','Scat & sign search','Close trap lines'],
+ flora:['Vegetation quadrats','Relevés','Targeted searches','Weed mapping','Voucher specimens','Condition scoring'],
+ seed:['Seed collection','Population mapping','Seed cleaning & bagging','Voucher specimens','Provenance records'],
+ bats:['Deploy bat detectors','Harp trap set','Roost search','Retrieve detectors','Call analysis'],
+ subs:['Bore scraping','Troglofauna traps','Stygofauna nets','Sample sorting','Bore logging'],
+ marine:['Dawn nest count','Track survey','Hatchling count','Beach profile','Night patrol'],
+};
+const OPEN_JOB='Gate induction & prestart',CLOSE_JOB='Client close-out & data backup';
 
-// ---------- state ----------
-const START=()=>({week:1,season:1,cash:60000,revenue:0,recordables:0,board:60,
- staff:JSON.parse(JSON.stringify(STAFF0)),market:JSON.parse(JSON.stringify(MARKET0)),
- trips:JSON.parse(JSON.stringify(TRIPS0)),clientRep:{newm:60,s32:60,rio:60,dept:60,lith:60},
- inbox:[],log:[],screen:'title',view:'office',training:{}});
-let S=null;
-const $=s=>document.querySelector(s);const screen=$('#screen');
-function save(){try{localStorage.setItem('fm96',JSON.stringify(S))}catch(e){}}
-function loadable(){try{const s=JSON.parse(localStorage.getItem('fm96'));return s&&s.screen!=='title'&&s.screen!=='end'}catch(e){return false}}
-function status(t){$('#st1').textContent=t;$('#st2').textContent=S?`Wk ${S.week}/${SEASON_WEEKS} · S${S.season}`:''}
-function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-const money=n=>'$'+Math.round(n).toLocaleString();
+// ---------- mob tasks ----------
+const MOB_TASKS=[{id:'ind',n:'Site inductions',c:400},{id:'med',n:'Pre-mob medicals',c:900},{id:'veh',n:'Vehicle pre-start & load',c:300},{id:'sat',n:'Sat phone & PLB check',c:150},{id:'jha',n:'JHA submitted',c:0},{id:'ppe',n:'PPE issued',c:600}];
+const MOB_DAYS=8;
+
+// ---------- excuses: mobilisation ----------
+// Option fields: l label, r result, done 1/0, d extra days lost, c cost, m morale (this person), cond, data, rep.
+const EXC_MOB={
+ 'veteran':[
+  {t:"Mate, I've been doing this twenty-odd years. I've never done an induction and I'm not starting now. The site knows me.",
+   o:[{l:"The site does not know you. Do the induction.",r:"{He} does it. Three attempts, because {he} keeps clicking Back. Passes with 71%.",done:1,d:1,m:-10},
+      {l:"Ring the site and ask for an exemption.",r:"Site admin laughs for ten seconds and hangs up. A day gone.",done:0,d:1},
+      {l:"Sit next to {him} and click through it together.",r:"Done in 40 minutes. {He} tells you a story about a goanna the whole time.",done:1,m:5}]},
+  {t:"The medical? I did one in 2017. Bloke said I had the heart of a 40-year-old. I'll bring the letter.",
+   o:[{l:"Book a new one. Today.",r:"Booked for 4pm. {He} passes. Blood pressure 'spirited'.",done:1,m:-5},
+      {l:"Check the 2017 letter.",r:"The letter is a photocopy of a fax. The clinic closed in 2019. Day gone.",done:0,d:1},
+      {l:"Book it and drive {him} there yourself.",r:"{He} talks about the 2011 wet season the whole way. Done.",done:1,m:10}]},
+  {t:"JHA's fine, I copied last year's. Same site, same job, same hazards. Nothing's changed.",
+   o:[{l:"The site's moved the haul road. Redo it.",r:"{He} redoes it and adds 'goanna' as a hazard. Done.",done:1},
+      {l:"Accept it.",r:"The site has moved the haul road. The client bounces it. Day gone.",done:0,d:1},
+      {l:"Go through it line by line with {him}.",r:"Painful, but done. {He} finds two things you missed.",done:1,d:1,m:5}]},
+  {t:"I don't wear the new long-sleeves. Too orange. I've got my own shirt, it's basically the same. It's faded and it's got a Bundy logo on it.",
+   o:[{l:"Site standard is site standard. Issue the shirt.",r:"{He} takes two, in silence. Done.",done:1,m:-10},
+      {l:"Let {him} wear {his} own.",r:"Site security would turn {him} around at the gate. Not done.",done:0,d:1,m:5},
+      {l:"Offer the shirt in the old colour.",r:"The old colour is also orange. {He} accepts this. Done.",done:1,m:5}]},
+ ],
+ 'allergic-to-forms':[
+  {t:"The login's not working. It says my password's wrong. It's the same one I used in 2019.",
+   o:[{l:"Reset it for {him}.",r:"New password: Goanna1. Done.",done:1},
+      {l:"Tell {him} to call IT.",r:"IT is one bloke called Trent, and Trent is at lunch. Then the dentist. Day gone.",done:0,d:1,m:-5},
+      {l:"Do it under your own login.",r:"Done. Somewhere, an auditor feels a chill.",done:1,c:200}]},
+  {t:"I'll get to it after this survey report. The client's chasing me. It's basically the same thing.",
+   o:[{l:"It is not the same thing. Now, please.",r:"Done. {He} CCs you on a passive-aggressive email to the client.",done:1,m:-10},
+      {l:"Let {him} finish the report first.",r:"The report takes all day. Nothing else happens.",done:0,d:1,m:5},
+      {l:"Offer to format the report so {he}'s free.",r:"Deal. Done. You now own a 40-page report in 11 fonts.",done:1,d:1,m:10}]},
+ ],
+ 'snake-magnet':[
+  {t:"{n}'s mobile is off. {His} desk phone is off the hook. {His} car is in the car park. There's a note: GONE TO LOOK AT A THING.",
+   o:[{l:"Wait.",r:"{He} returns at 3pm with a snake in a pillowcase. The task was done in the car, apparently.",done:1,m:5},
+      {l:"Do it yourself.",r:"Done. You are now also a senior ecologist.",done:1,m:-5},
+      {l:"Ask {o} where {he} went.",r:"{o} went with {him}. Two people are now looking at the thing. Day gone.",done:0,d:1,m:5}]},
+ ],
+ 'over-prepares':[
+  {t:"Before I do the task I've prepared a 14-page gap analysis of the current process. Do you want to review it first?",
+   o:[{l:"No. Just do the task.",r:"Done in an hour. The gap analysis stays in {his} drafts, glowing faintly.",done:1,m:-5},
+      {l:"Yes, send it through.",r:"It is very good. It is also 14 pages. Nothing else happened today.",done:0,d:1,m:10},
+      {l:"Task first, then we'll go through it together.",r:"Done. The analysis has a real point about eskies. You bank it.",done:1,m:5}]},
+  {t:"I've packed everything. Both eskies, three first-aid kits, a spare spare tyre and a laminator. The ute is 180 kg over its limit.",
+   o:[{l:"Cut it back to the standard load list.",r:"{He} parts with the laminator like it's a pet. Done.",done:1,m:-5},
+      {l:"Book a second vehicle.",r:"Done. Fleet would like to know why.",done:1,c:800,m:5},
+      {l:"Let it ride.",r:"The pre-start fails on weight. Back to the start.",done:0,d:1}]},
+  {t:"Quick question: is the site induction the 45-minute one or the 4-hour one? I did both, just in case. And one for a different site.",
+   o:[{l:"The 45-minute one.",r:"Already done. Three times over. Done.",done:1},
+      {l:"Check which one the client wants.",r:"The client isn't sure either. Day gone to emails.",done:0,d:1},
+      {l:"Write down which one, for next time.",r:"Done. There is now a 9-page induction matrix on the shared drive.",done:1,m:5}]},
+  {t:"I booked the flights, then saw a cheaper fare and cancelled, then that one had six hours in Kalgoorlie so I cancelled that too. Currently there are no flights.",
+   o:[{l:"Rebook the original. Stop looking.",r:"Rebooked. $300 dearer because it's now Tuesday. Done.",done:1,c:300,m:-5},
+      {l:"Take the Kalgoorlie one.",r:"Done. The team will see a lot of Kalgoorlie airport.",done:1,m:-5},
+      {l:"Give {him} the travel policy and a deadline.",r:"{He} reads all 22 pages and books correctly by 3pm. Done.",done:1,m:5}]},
+ ],
+ 'laminator':[
+  {t:"I made a laminated hydration schedule for each person, colour coded. Then I found the wrong shift times so I made new ones. The laminator has jammed.",
+   o:[{l:"Leave the laminator. Do the task.",r:"Done. The laminator is still making a noise.",done:1,m:-5},
+      {l:"Fix the laminator.",r:"A pouch folded in half. 40 minutes. Then the task. Done.",done:1,m:10},
+      {l:"Buy a new laminator.",r:"$180. It also jams. Day gone.",done:0,d:1,c:180}]},
+ ],
+ 'emails-clients':[
+  {t:"I wanted to double-check the permit conditions, so I rang the Department. They've put me through to four people. I'm on hold to the Minister's office.",
+   o:[{l:"Hang up. The conditions are on the permit.",r:"They are. Done in ten minutes.",done:1},
+      {l:"Let {him} see it through.",r:"The Minister's office is polite. Nothing is confirmed. Day gone.",done:0,d:1,m:5},
+      {l:"Send {him} last trip's permit as a template.",r:"Done. {He} annotates it in three colours.",done:1,m:5}]},
+  {t:"My car's in for a service, so I'm working from home, and the thing I need is on my desk. Under the plant.",
+   o:[{l:"Ask {o} to grab it and drop it round.",r:"{o} brings the wrong plant. Second trip, right item. Done.",done:1,d:1},
+      {l:"Uber {him} in on the company account.",r:"$60 later {he}'s at {his} desk. Done by 10:30.",done:1,c:60,m:5},
+      {l:"Tell {him} to do what {he} can from home.",r:"{He} rebuilds it from memory as a spreadsheet with a dashboard. Not done.",done:0,d:1,m:5}]},
+ ],
+ 'loses-things':[
+  {t:"Yeah so I picked up the sat phone, then left it in the other ute. Which is in Karratha. With {o}.",
+   o:[{l:"Freight a replacement up.",r:"Overnight freight, $190. Done. The original will turn up in November.",done:1,c:190},
+      {l:"Ring {o}.",r:"{o} does not answer. Day gone.",done:0,d:1,m:-5},
+      {l:"Borrow one from the Seed team.",r:"Lent, with a laminated sign that says RETURN THIS. Done.",done:1,m:5}]},
+  {t:"Checked the PLB. Pressed the button. The big one. It's flashing now. Is that good?",
+   o:[{l:"Ring AMSA. Right now.",r:"AMSA have spoken to {n} before. Done, with a letter to follow.",done:1,m:-5},
+      {l:"Ask which button.",r:"The one under the cover that says DO NOT PRESS. AMSA ring you first. Day gone.",done:0,d:1,m:-10},
+      {l:"Redo it with the test button, supervised.",r:"Done. {He}'s quite good at it once someone's watching.",done:1,m:5}]},
+  {t:"Got the PPE. Boots are the wrong size. All of them. I ordered size 9 for everyone because I'm a 9 and that's average.",
+   o:[{l:"Return them. Get everyone's size.",r:"Done. Some people turned out not to be a 9.",done:1,d:1},
+      {l:"Keep them. Thick socks.",r:"Site will fail the footwear. Not done.",done:0,d:1,m:-5},
+      {l:"Send {him} to the shop with the whole team.",r:"It becomes lunch. Done by 2pm.",done:1,c:80,m:10}]},
+ ],
+ 'hard-on-vehicles':[
+  {t:"Slight issue. The ute's got a flat. The spare's also flat. Don't know how, I only rolled it once.",
+   o:[{l:"Get both tyres done today.",r:"$340 at the tyre place, plus a bull bar quote nobody asked for. Done.",done:1,c:340},
+      {l:"Swap to the other ute.",r:"Cracked windscreen and a smell. Also 'done'.",done:1,m:-5},
+      {l:"Ask how {he} 'rolled it once'.",r:"You do not want to know. Now you know. Day gone to paperwork.",done:0,d:1,m:-10}]},
+  {t:"Loaded the ute. Slight thing. Backed it into the roller door. The door's fine. The ute has a new shape.",
+   o:[{l:"Get it assessed before it goes anywhere.",r:"Cosmetic. Tailgate needs a hammer. Done.",done:1,c:250},
+      {l:"Swap vehicles.",r:"Done. The other ute has the smell.",done:1,m:-5},
+      {l:"Get {him} to write it up in Mango first.",r:"{He} writes 'ute met door'. You rewrite it. Day gone.",done:0,d:1,m:-5}]},
+  {t:"Fuel card's declined. Declined at the next servo too. And the one after.",
+   o:[{l:"Ring the fuel card people.",r:"Cancelled for 'unusual activity in Karratha'. That was {o}. Reinstated. Done.",done:1},
+      {l:"Pay on your card and claim it.",r:"$190. Done. You'll see that money in eight weeks.",done:1,c:190},
+      {l:"Send {him} back to the depot to sort it.",r:"{He} runs out of fuel on the way. Day gone.",done:0,d:1,m:-10}]},
+ ],
+ 'parking-fines':[
+  {t:"Can't do it this arvo, got a thing. A legal thing. Not a bad legal thing. Parking. Lots of parking.",
+   o:[{l:"Do it tomorrow before the thing.",r:"{He} rocks up at 6am, unasked, and gets it done.",done:1,m:10},
+      {l:"Give it to {o}.",r:"Done, but {o}'s own work slips a day.",done:1,d:1},
+      {l:"Ask about the parking.",r:"$2,100 across three councils. Payment plan. You buy {him} lunch. Not done.",done:0,d:1,c:25,m:10}]},
+ ],
+ 'cuts-corners':[
+  {t:"Done. Well, mostly. I did the ones that were easy. The rest are basically the same as the easy ones.",
+   o:[{l:"Do the rest. Properly.",r:"Done, with sighing.",done:1,d:1,m:-5},
+      {l:"Check the easy ones.",r:"Two of the easy ones are wrong. Fixed. Done.",done:1,d:1},
+      {l:"Close enough.",r:"It isn't. Not done.",done:0,m:5}]},
+ ],
+ 'distractible':[
+  {t:"Sorry, I was going to, but there's a Ptilotus on the verge outside the office that shouldn't be there and I've been keying it out for six hours.",
+   o:[{l:"Task now, plant later.",r:"Done. It's a garden escapee.",done:1},
+      {l:"Ask what the plant is.",r:"You learn a lot about bracts. The day is over.",done:0,d:1,m:10},
+      {l:"Pair {him} with {o} for an hour.",r:"{o} has a checklist. Done in 45 minutes.",done:1,m:5}]},
+  {t:"I did it! Oh. No. I did the one for the Yandi trip. Which was in March. Is that the same?",
+   o:[{l:"It is not. Redo it for this trip.",r:"Redone in 20 minutes. Done.",done:1,m:-5},
+      {l:"Check if March's is still valid.",r:"It is not. Day gone.",done:0,d:1},
+      {l:"Copy March's and change the dates.",r:"Done. It still says Yandi in two places.",done:1}]},
+  {t:"Text from {n}: 'On my way back from the lab. Slight detour. In by 3.' The lab is in Mandurah. {His} location says Dwellingup.",
+   o:[{l:"Wait for {him}.",r:"{He} arrives at 4:40 with a boot full of Banksia cones. Done by 5.",done:1,m:5},
+      {l:"Do it yourself.",r:"Done. You are booking someone's medical.",done:1,m:-5},
+      {l:"Send a stern message.",r:"{He} replies with a photo of a rare orchid. You're not mad any more. Not done.",done:0,d:1,m:5}]},
+  {t:"I'm in the car park. I've been here 20 minutes. There's a Wedge-tailed Eagle on the light pole and I don't want to disturb it.",
+   o:[{l:"Wait it out.",r:"Eagle leaves at 9:40. Done by 11.",done:1,m:5},
+      {l:"Tell {him} to walk under it.",r:"{He} does, slowly. {He}'s upset with you. Done.",done:1,m:-10},
+      {l:"Go out and watch the eagle too.",r:"It's a very good eagle. Nobody does anything. Day gone.",done:0,d:1,m:10}]},
+ ],
+ 'names-animals':[
+  {t:"I packed the eskies. I also packed a small esky inside the big esky, for the interesting samples. And a smaller one inside that.",
+   o:[{l:"Fine. Done.",r:"It is, technically, packed.",done:1,m:5},
+      {l:"Repack to the standard list.",r:"Done. {He} keeps the little esky in {his} bag. You allow it.",done:1},
+      {l:"Ask why.",r:"There's a good reason. It involves a beetle called Gerald. Day gone.",done:0,d:1,m:5}]},
+  {t:"The JHA's done, but I've added a section on the ethical treatment of invertebrates. It's three pages. Some of it is in Latin.",
+   o:[{l:"Cut it back to the template.",r:"{He} saves the three pages 'for the journal'. Done.",done:1,m:-5},
+      {l:"Leave it in.",r:"The client asks for a translation. Day gone.",done:0,d:1},
+      {l:"Move it to an appendix.",r:"Done. Nobody reads appendices.",done:1,m:5}]},
+ ],
+ 'finds-rare-things':[
+  {t:"I'll do it, but first: I think the plant in the office foyer is a threatened species. Should we tell someone?",
+   o:[{l:"Task first.",r:"Done. The foyer plant is from Bunnings.",done:1},
+      {l:"Tell someone.",r:"You tell the Department. The Department is interested. Day gone.",done:0,d:1,m:10},
+      {l:"Photograph it, then task.",r:"Done. The photo goes on the staff noticeboard.",done:1,m:5}]},
+ ],
+ 'unreachable':[
+  {t:"[No answer. Voicemail: '{n}. Leave a message.' You leave a message.]",
+   o:[{l:"Try again in an hour.",r:"{He} calls back at 9pm. From a boat. 'Sort it Monday.' Day gone.",done:0,d:1},
+      {l:"Text, email, and message {his} partner.",r:"{His} partner replies in four minutes. Done by 2pm.",done:1},
+      {l:"Book someone else.",r:"A replacement costs an extra $700. Done.",done:1,c:700}]},
+  {t:"Reminder text bounced. {n} has changed {his} number. Again. {His} email auto-reply says 'Out bush, back whenever'.",
+   o:[{l:"Ring the last client {he} worked for.",r:"They have the number, and opinions. Done.",done:1},
+      {l:"Drive to {his} place.",r:"Empty. Neighbour says try the pub. {He}'s at the pub. Done.",done:1,d:1,m:5},
+      {l:"Wait for {him} to surface.",r:"{He} surfaces Friday. Day gone.",done:0,d:1}]},
+  {t:"Reception's cooked up here, can you just do it and I'll sign when I'm in. I'm in Thursday. Or Friday.",
+   o:[{l:"It has to be done before then.",r:"{He} drives to a hill with reception and does it on {his} phone. Done.",done:1,m:10},
+      {l:"Do the bit you can.",r:"Half done is not done. Day gone.",done:0,d:1},
+      {l:"Do it for {him} and get a signature later.",r:"Done. The signature, when it arrives, is an 'M' with a fish.",done:1}]},
+ ],
+ 'unbothered':[
+  {t:"Yeah no worries, all done. [{He} sends a photo. It is a different form, from a different company, with someone else's name on it.]",
+   o:[{l:"Send the right form, fields highlighted.",r:"Second attempt is right. Done.",done:1},
+      {l:"Ring and walk {him} through it.",r:"{He}'s on a boat. Reception drops. Day gone.",done:0,d:1,m:-5},
+      {l:"Fill it in from last time and get a signature.",r:"Done. Signature looks a lot like 'M'.",done:1}]},
+  {t:"Got your email. Can't open the attachment. My phone says it's 'a Word'. What's a Word?",
+   o:[{l:"Send it as a PDF.",r:"{He} signs with a finger and sends a photo of the screen. Done.",done:1},
+      {l:"Explain what Word is.",r:"{He} installs something called 'Word Free Pro'. The phone is now very slow. Day gone.",done:0,d:1,m:-5},
+      {l:"Print it and leave it at the depot.",r:"{He} fills it in on a bonnet. Done. Slight diesel smell.",done:1,d:1,m:5}]},
+ ],
+ 'fishing':[
+  {t:"Can we do it Tuesday? Tide's right Monday.",
+   o:[{l:"Monday. Tide or no tide.",r:"{He} comes in Monday. {He} is not happy about the tide. Done.",done:1,m:-10},
+      {l:"Tuesday's fine.",r:"Tuesday arrives. So does {n}, eventually. Done.",done:1,d:1,m:10},
+      {l:"Bring the rod, do it at the boat ramp.",r:"Done at the boat ramp. Also, two whiting.",done:1,m:15}]},
+ ],
+ 'solid':[
+  {t:"Done. Also, the JHA template is from 2019 so I've updated it. I'd like that noted somewhere.",
+   o:[{l:"Note it in {his} file.",r:"Noted. {He} saw you note it. Done.",done:1,m:10},
+      {l:"Thanks.",r:"Done.",done:1},
+      {l:"Why was it from 2019?",r:"It was your template. Done.",done:1,m:5}]},
+ ],
+ 'wants-promotion':[
+  {t:"Happy to do it. Flagging that a Senior would normally delegate this.",
+   o:[{l:"Do it anyway.",r:"Done. Coolly.",done:1,m:-10},
+      {l:"Delegate it to {o}, then.",r:"{o} does it. {o} did not want to. Done.",done:1,m:5},
+      {l:"We'll talk about Senior after this trip.",r:"Done, quickly. {He} has put a meeting in your calendar.",done:1,m:10}]},
+ ],
+ 'office-only':[
+  {t:"Happy to do the paperwork. Not going to the depot. There are flies at the depot.",
+   o:[{l:"Go to the depot.",r:"{He} goes. {He} comes back. {He} mentions the flies. Done.",done:1,m:-15},
+      {l:"Do the paperwork. {o} walks round the ute.",r:"Done, as a team.",done:1},
+      {l:"Fine. Skip the physical check.",r:"The form says the tyres are fine. Nobody looked at the tyres. Not done.",done:0}]},
+ ],
+ 'fixes-everything':[
+  {t:"The booking portal was broken so I rebuilt it. It's much better. I haven't done the booking yet, I was rebuilding the portal.",
+   o:[{l:"Great. Now book it.",r:"Done in two minutes, with the new portal.",done:1,d:1,m:5},
+      {l:"Show me the portal.",r:"It's very good. An hour passes. Not done.",done:0,d:1,m:10},
+      {l:"Next time, task first.",r:"Done. {He} is a bit hurt about the portal.",done:1,m:-5}]},
+ ],
+ 'on-loan-from-seed':[
+  {t:"Seed team need me Thursday. And Friday. And, looking at this, today.",
+   o:[{l:"Ring the Seed manager.",r:"Negotiated. {n} is yours till Wednesday. Done.",done:1,d:1},
+      {l:"Let {him} go. Give it to {o}.",r:"Done by {o}.",done:1},
+      {l:"Tell Seed no.",r:"Done. The Seed manager now 'has thoughts'.",done:1,m:-5}]},
+ ],
+ 'quiet':[
+  {t:"{n} says it's done. There's no record anywhere that it's done. {He}'s quite sure.",
+   o:[{l:"Trust {him}.",r:"It was done. Filed in a folder called 'misc 2'.",done:1,m:5},
+      {l:"Ask for proof.",r:"A phone photo of a screen showing the form. Done.",done:1,m:-5},
+      {l:"Redo it.",r:"Done twice now.",done:1,d:1,m:-10}]},
+ ],
+ 'keen':[
+  {t:"Done! I also did the next three things on your list, and the client's timesheets, and I rang the site to introduce myself to security.",
+   o:[{l:"Great. Please stop ringing the site.",r:"Done.",done:1,m:-5},
+      {l:"Who asked you to do the timesheets?",r:"Nobody. They were wrong. Now they're right. Done.",done:1,m:-10},
+      {l:"Brilliant.",r:"Done. Site security know {n} by name now. Useful, or a problem.",done:1,m:10}]},
+ ],
+ 'no-licence':[
+  {t:"I can do the vehicle stuff but I can't drive the ute. Or any ute. Can I get a lift to the depot? From you?",
+   o:[{l:"Drive {him} over.",r:"Done. Your morning is gone.",done:1,d:1},
+      {l:"Give it to {o}.",r:"Done by {o}.",done:1},
+      {l:"Book {him} driving lessons. {o} does it this time.",r:"Lessons booked. Done.",done:1,c:400,m:10}]},
+ ],
+ 'ex-drilling':[
+  {t:"Pre-start's done. I also rang the site and told them their pre-start form's wrong. Section 4. It's been wrong since 2011.",
+   o:[{l:"Thanks. Maybe don't ring the site.",r:"Done.",done:1,m:-5},
+      {l:"Were they grateful?",r:"They were not. They've fixed Section 4. Done.",done:1,m:5},
+      {l:"Ring them back and smooth it over.",r:"Smoothed. Done.",done:1,d:1}]},
+ ],
+ 'ex-competitor':[
+  {t:"At my old place we just reused the client's inductions from the last job. Can we do that? It's basically the same client.",
+   o:[{l:"No. Do it properly.",r:"Done.",done:1,m:-5},
+      {l:"Is it the same client?",r:"It isn't. It's their competitor. Day gone.",done:0,d:1},
+      {l:"Show me how the old place did it.",r:"It was worse. {He} does it properly. Done.",done:1,m:5}]},
+ ],
+ 'sharp':[
+  {t:"Done. Also, the flights land after the camp kitchen closes.",
+   o:[{l:"Rebook them.",r:"Done.",done:1,c:200},
+      {l:"Pack sandwiches.",r:"Done. Sandwiches packed.",done:1},
+      {l:"They'll survive.",r:"Done. They will not be happy.",done:1,m:-5}]},
+ ],
+ 'no-nonsense':[
+  {t:"Done. Nobody else here has done a medical on time since 2019. I've told them.",
+   o:[{l:"Good.",r:"Done.",done:1,m:5},
+      {l:"Maybe don't tell them.",r:"Done. {He} tells them anyway.",done:1,m:-5},
+      {l:"Who hasn't?",r:"{He} gives you a list. You're on it. Done.",done:1}]},
+ ],
+ 'generic':[
+  {t:"{n} forgot. {He}'s very sorry. {He}'s also going to lunch.",
+   o:[{l:"Now please, before lunch.",r:"Done.",done:1,m:-5},
+      {l:"After lunch is fine.",r:"After lunch becomes tomorrow. Day gone.",done:0,d:1},
+      {l:"Give it to {o}.",r:"Done by {o}.",done:1}]},
+  {t:"{n} started it, then got pulled into a meeting about meetings.",
+   o:[{l:"Pull {him} out.",r:"Done.",done:1},
+      {l:"Wait.",r:"The meeting schedules a follow-up meeting. Day gone.",done:0,d:1},
+      {l:"Go to the meeting and end it.",r:"You end the meeting. Everyone is relieved. Done.",done:1,m:5}]},
+  {t:"{n} has done it. For the wrong trip.",
+   o:[{l:"Redo it for this one.",r:"Done.",done:1,m:-5},
+      {l:"Is the wrong trip happening?",r:"It's in March. You've now prepped March. Day gone.",done:0,d:1},
+      {l:"Give it to {o}.",r:"Done by {o}.",done:1}]},
+ ],
+};
+
+// ---------- excuses: field ----------
+const EXC_FIELD={
+ 'veteran':[
+  {t:"Prestart? I've been on this site since before it had a gate. I'll sign the sheet, you do the talking.",
+   o:[{l:"{He} runs it. Properly.",r:"{He} runs it. It's good. Includes a story about a camel.",done:1,m:5},
+      {l:"You run it, {he} signs.",r:"Done. {He} signs as 'R'.",done:1},
+      {l:"Skip it, just this once.",r:"The client rep walks past at that moment. Not done.",done:0,data:-5,rep:-3}]},
+  {t:"I've put the trap lines where they were in 2016. The site's put a laydown yard on top of line 3, but the traps are technically still under it.",
+   o:[{l:"Move line 3.",r:"Moved by lunch.",done:1,m:-5},
+      {l:"Leave it. Nobody checks line 3.",r:"A forklift checks line 3. Not done.",done:0,data:-5},
+      {l:"Ask the site to move the laydown yard.",r:"They laugh. Then they move it. {He}'s a legend here.",done:1,m:10}]},
+ ],
+ 'allergic-to-forms':[
+  {t:"Datasheets? It's all up here. I'll write it down later.",
+   o:[{l:"Write it down tonight.",r:"Written. Mostly.",done:1,m:-5},
+      {l:"Dictate it to {o}.",r:"{o} types while {n} talks. Done.",done:1},
+      {l:"Trust the memory.",r:"Memory says 'about 30 of the little brown ones'. Not done.",done:0,data:-5}]},
+ ],
+ 'snake-magnet':[
+  {t:"{n} has caught something to show you. It's in {his} hat. {His} hat is on {his} head.",
+   o:[{l:"Put it back where you found it.",r:"Released. Job done after.",done:1,m:-5},
+      {l:"What is it?",r:"A death adder. {He}'s very pleased. Job done, eventually.",done:1,m:5,cond:-10},
+      {l:"Walk away slowly.",r:"Everyone's fine. The job doesn't get done.",done:0}]},
+ ],
+ 'over-prepares':[
+  {t:"Comms test done. Sat phone, UHF, PLB test mode. I also rang head office, my mum, and the camp kitchen to confirm dinner.",
+   o:[{l:"Good. Done.",r:"Dinner is chicken.",done:1,m:5},
+      {l:"Please stop ringing people.",r:"{He} rings one more person to say {he}'s stopping.",done:1},
+      {l:"Ask about the PLB test.",r:"Test mode. {He} shows you a laminated card.",done:1,m:5}]},
+  {t:"I've recorded every plant to subspecies. It's taken all day and I've done two of the twelve.",
+   o:[{l:"Species level from here.",r:"{He} grieves briefly. Done by dark.",done:1,m:-5},
+      {l:"Let {him} keep going.",r:"Two beautiful quadrats. The client wanted twelve. Not done.",done:0,m:5},
+      {l:"Split them with {o}.",r:"Done, at two different levels of detail.",done:1}]},
+  {t:"I've made a 40-slide deck for the close-out. The client asked about haul roads.",
+   o:[{l:"Three slides.",r:"Done. Slide 3 has a beetle on it anyway.",done:1,m:-5},
+      {l:"All 40.",r:"The client leaves at slide 22. Not done.",done:0,rep:-3,m:5},
+      {l:"You present, {he} takes questions.",r:"Done. The only question is about the beetle.",done:1,m:5}]},
+ ],
+ 'emails-clients':[
+  {t:"Data's uploaded. I built a dashboard. Also I found a discrepancy in the 2016 data and emailed the client. Directly. From my phone.",
+   o:[{l:"Call the client and manage it.",r:"The client is fine, curious even. Done.",done:1},
+      {l:"Client contact goes through you.",r:"{He} writes it on {his} hand. Done.",done:1,m:-5},
+      {l:"Look at the dashboard.",r:"It's good. It's really good. Done.",done:1,m:10,rep:2}]},
+ ],
+ 'laminator':[
+  {t:"{n} has laminated the datasheets. They can no longer be written on.",
+   o:[{l:"Print new ones at camp.",r:"Done.",done:1,c:50},
+      {l:"Use whiteboard markers.",r:"Mostly works. Some of it smudged.",done:1,data:-3},
+      {l:"Why?",r:"'They'll be waterproof.' They will. Not done.",done:0}]},
+ ],
+ 'loses-things':[
+  {t:"Packing up. I've packed the ute so well I can't find the keys. They're in the ute. Somewhere.",
+   o:[{l:"Unpack it.",r:"Keys were in the esky. Two hours late. Done.",done:1,m:-5},
+      {l:"Spare key via the depot.",r:"Nobody at the depot answers. Unpacked anyway. Done.",done:1,m:-5},
+      {l:"Check {his} pockets.",r:"Pocket. Done.",done:1}]},
+  {t:"{n} forgot the GPS. The GPS is in the office. The office is 1,400 km away.",
+   o:[{l:"Use a phone.",r:"Done. Accuracy 'about there'.",done:1,data:-3},
+      {l:"Borrow {o}'s.",r:"Done. {o} is now also without a GPS.",done:1},
+      {l:"Sketch map.",r:"The sketch has a smiley sun on it. Not done.",done:0}]},
+ ],
+ 'hard-on-vehicles':[
+  {t:"The ute's bogged. Not in a creek. In the car park. It rained a bit.",
+   o:[{l:"Snatch strap, with {o}.",r:"Out in 20 minutes. Done.",done:1},
+      {l:"Walk to the job.",r:"Done, on foot.",done:1,cond:-15},
+      {l:"Call the site.",r:"Site's recovery truck. And the site's opinion.",done:1,c:400,rep:-2}]},
+ ],
+ 'cuts-corners':[
+  {t:"Bat detectors are out. I put them all on the one tree so they'd be easy to collect.",
+   o:[{l:"Spread them out before dark.",r:"Done, with a torch.",done:1},
+      {l:"Leave them.",r:"One tree, very well recorded. Not done.",done:0,data:-5},
+      {l:"Send {him} with {o} and a map.",r:"Done. {o} finds a roost on the way.",done:1,data:3,m:5}]},
+ ],
+ 'distractible':[
+  {t:"{n} was on the way to the job and saw a flock of something. {He}'s following it.",
+   o:[{l:"Radio {him} back.",r:"{He} comes back, looking over {his} shoulder. Done.",done:1,m:-5},
+      {l:"Let {him} go.",r:"Rainbow bee-eaters. Beautiful. Not done.",done:0,m:10},
+      {l:"Send {o} to do the job.",r:"Done by {o}.",done:1}]},
+ ],
+ 'names-animals':[
+  {t:"Trap check took a while. Every trap had something. I've named them. All of them. I have a spreadsheet of names.",
+   o:[{l:"Great. Process and release.",r:"Done. Kevin, a Pseudomys, goes last.",done:1,m:5},
+      {l:"Please don't name them.",r:"{He} names them quietly. Done.",done:1,m:-5},
+      {l:"Show me the spreadsheet.",r:"It has a column for personality. Done, slowly.",done:1,m:5,data:-2}]},
+ ],
+ 'finds-rare-things':[
+  {t:"I've found a population of something that isn't in the flora. I'd like to stay here for the rest of the trip.",
+   o:[{l:"Collect, flag it for the client.",r:"Done. The client is thrilled and slightly alarmed.",done:1,data:5,m:5},
+      {l:"Let {him} stay.",r:"Something excellent gets described. Not done.",done:0,m:15},
+      {l:"Photos and GPS, then move on.",r:"Done. {He} looks back at it the whole drive.",done:1}]},
+ ],
+ 'unreachable':[
+  {t:"[{n} is at the gate. {He} has no induction card. {He} says it's 'in the other ute'.]",
+   o:[{l:"Re-induct at the gate.",r:"Two hours. Done.",done:1},
+      {l:"Send {him} back to camp for the day.",r:"{He} spends the day fishing. Not done.",done:0,m:5},
+      {l:"Ring the site admin you owe a favour.",r:"Done in 20 minutes. You now owe two favours.",done:1}]},
+ ],
+ 'fishing':[
+  {t:"{n} did the job. The datasheets are complete, dry, folded in quarters, and one has a fishing lure through it.",
+   o:[{l:"Transcribe them tonight.",r:"Done. The lure was a Halco.",done:1,m:-5},
+      {l:"Send {him} out to redo them.",r:"{He} redoes them. On paper. Done.",done:1,cond:-10},
+      {l:"Accept them as they are.",r:"Data entry finds 'fish?' in the species column. Not done.",done:0,data:-5}]},
+ ],
+ 'unbothered':[
+  {t:"{n} closed the traps. They were not our traps. They were the other consultancy's.",
+   o:[{l:"Apologise, reopen theirs, close ours.",r:"Done. They are very professional about it.",done:1,m:-5},
+      {l:"Close ours. Say nothing.",r:"Done. Their trip goes badly. You hear about it later.",done:1,rep:-3},
+      {l:"Send {him} to apologise.",r:"{He} brings them fish. Everyone's fine. Done.",done:1,m:10}]},
+ ],
+ 'solid':[
+  {t:"Done, and the GPS points for the next line are 200 m out. Fixing them will take the afternoon.",
+   o:[{l:"Fix them.",r:"Fixed. Done.",done:1,data:3,cond:-5},
+      {l:"Leave it.",r:"Done. The next line starts in the wrong place.",done:1,data:-3},
+      {l:"Log it for next trip.",r:"Done and logged.",done:1}]},
+ ],
+ 'wants-promotion':[
+  {t:"{n} has introduced {him}self to the client rep as 'the lead on this one'.",
+   o:[{l:"Correct it quietly.",r:"Corrected. Done.",done:1,m:-10},
+      {l:"Let it stand.",r:"The client now emails {n} directly, and {he} answers well. Done.",done:1,m:10,rep:2},
+      {l:"Correct it in front of the client.",r:"Done. Very quiet drive home.",done:1,m:-20}]},
+ ],
+ 'office-only':[
+  {t:"{n} is on site. {He} has not left the ute. The ute has air-con and 4G.",
+   o:[{l:"Out of the ute.",r:"Out. Done. The flies find {him} immediately.",done:1,m:-10,cond:-10},
+      {l:"{He} does data entry from the ute.",r:"The data's beautiful. The field job isn't done.",done:0,data:3},
+      {l:"Swap {him} with {o} for this one.",r:"Done by {o}.",done:1}]},
+ ],
+ 'fixes-everything':[
+  {t:"The detector firmware was wrong on four units. {n} reflashed them with a laptop and a cable from 2009. Took the morning.",
+   o:[{l:"Great.",r:"Done. All four now work.",done:1,data:3,m:5},
+      {l:"Could the morning have gone on the job?",r:"Done, late.",done:1,m:-5},
+      {l:"Get {him} to write down how.",r:"Done. It's a good document.",done:1}]},
+ ],
+ 'on-loan-from-seed':[
+  {t:"{n} is collecting seed. This is not a seed trip. The seed is very good.",
+   o:[{l:"Back to the job.",r:"Done. {He} has a bag of seed in {his} lap the whole drive.",done:1},
+      {l:"Let {him} finish the bag.",r:"The Seed team are grateful. The job isn't done.",done:0,m:5},
+      {l:"Send the seed to Seed with a note.",r:"Done. Goodwill banked.",done:1,m:5}]},
+ ],
+ 'quiet':[
+  {t:"{n} went out at 5am, did the job, came back and said nothing. The data is perfect.",
+   o:[{l:"Say thanks.",r:"{He} nods.",done:1,m:10},
+      {l:"Say nothing back.",r:"{He} nods.",done:1},
+      {l:"Ask {him} to talk more on the radio.",r:"{He} nods.",done:1,m:-5}]},
+ ],
+ 'keen':[
+  {t:"{n} walked the whole transect twice to be sure. 24 km. In 41 degrees.",
+   o:[{l:"Rest {him} tomorrow.",r:"Done. {He} rests, reluctantly.",done:1,m:5},
+      {l:"Great work.",r:"Done. {He} looks cooked.",done:1,data:3,cond:-20},
+      {l:"That's a heat risk. Toolbox tonight.",r:"Done. The toolbox is about {him}.",done:1,m:-5}]},
+ ],
+ 'no-licence':[
+  {t:"{n} needs a lift to the trap line. Everyone else has left.",
+   o:[{l:"Drive {him} yourself.",r:"Done.",done:1},
+      {l:"{He} walks.",r:"Done, on foot.",done:1,cond:-15},
+      {l:"{He} does data entry instead.",r:"Useful. The field job isn't done.",done:0}]},
+ ],
+ 'ex-drilling':[
+  {t:"{n} told the site supervisor the laydown yard is a hazard. It is. They didn't like hearing it.",
+   o:[{l:"Back {him} up.",r:"Done. The supervisor is cold for the rest of the trip.",done:1,m:10,rep:-2},
+      {l:"Smooth it over.",r:"Done.",done:1,m:-5},
+      {l:"Report it formally.",r:"The site thanks you in writing. Grudgingly.",done:1,rep:3}]},
+ ],
+ 'ex-competitor':[
+  {t:"{n} recognises the traps on the next line. They're the competitor's. {He} knows where they keep the good snacks.",
+   o:[{l:"Leave their camp alone.",r:"Done.",done:1},
+      {l:"Just the snacks.",r:"Done. Nobody saw. Probably.",done:1,m:10,rep:-2},
+      {l:"Ask them what they're finding.",r:"They tell {n} everything. Old friends.",done:1,data:3}]},
+ ],
+ 'sharp':[
+  {t:"{n} noticed the sampling design has a gap. Fixing it adds a site.",
+   o:[{l:"Add the site.",r:"Done. The client notices and is pleased.",done:1,data:3,rep:2,cond:-5},
+      {l:"Flag it in the report.",r:"Done.",done:1},
+      {l:"Stick to the scope.",r:"Done.",done:1,m:-5}]},
+ ],
+ 'no-nonsense':[
+  {t:"{n} has confiscated the camp speaker. Morale is down. Sleep is up.",
+   o:[{l:"Back {him}.",r:"Early nights all round. Done.",done:1},
+      {l:"Give the speaker back.",r:"Done. {He} is unimpressed.",done:1,m:-10},
+      {l:"Compromise: off at 9.",r:"Done.",done:1,m:5}]},
+ ],
+ 'generic':[
+  {t:"Camp check-in. We're booked as a drilling crew, so we're in the drillers' dongas. The drillers are also in the drillers' dongas.",
+   o:[{l:"Sort it with the camp manager.",r:"Rooms sorted by 9pm. Done.",done:1},
+      {l:"Share with the drillers.",r:"Done. Nobody sleeps. Drillers are up at 4.",done:1,cond:-15},
+      {l:"Swags at the trap site.",r:"Lovely, actually. Done.",done:1,m:10}]},
+  {t:"{n} has gone to the wrong site. It's the right site from last year.",
+   o:[{l:"Redirect {him}.",r:"Done, late.",done:1,cond:-5},
+      {l:"Survey where {he} is.",r:"Good data. Wrong place. Not done.",done:0},
+      {l:"Send {o}.",r:"Done by {o}.",done:1}]},
+  {t:"{n} did the job. The datasheets blew into a gully.",
+   o:[{l:"Go and get them.",r:"Retrieved. Mostly legible. Done.",done:1,cond:-10},
+      {l:"Redo it tomorrow.",r:"Not done today.",done:0},
+      {l:"Reconstruct from photos.",r:"Done. The photos are of the datasheets blowing away.",done:1,data:-3}]},
+ ],
+};
+
+// ---------- incidents ----------
+// req: fires (75%) when that mob task was skipped. pref: trait preferred for {a}. supp: flag that suppresses it.
+// Option fields: inc recordable, inj weeks for {a}, c cost, m team morale, cond team condition, data, rep.
+const INCIDENTS=[
+ {id:'swag',pref:'good-in-a-crisis',t:"{b} has found a snake in {his} swag and is on the roof of the ute. The snake is still in the swag.",
+  o:[{l:"{a} relocates it.",r:"Mulga. Relocated. {b} sleeps in the ute.",m:-5},
+     {l:"Nobody touches it. Wait.",r:"The snake leaves at 3am. Nobody sleeps.",m:-10,cond:-10},
+     {l:"Ring the site's snake handler.",r:"$300 call-out. Done properly.",c:300}]},
+ {id:'bog',pref:'hard-on-vehicles',t:"{a} has bogged the ute in a creek crossing that was dry on the map. Water is at the doors. {b} is photographing a frog.",
+  o:[{l:"Winch out with the second vehicle.",r:"Out in an hour. The frog is a new record.",m:5,data:3},
+     {l:"Wait for the site's recovery crew.",r:"Four hours and $900. They log it as an incident.",c:900,m:-10,inc:1},
+     {l:"Dig.",r:"Three hours of digging. Out. Everyone is filthy.",m:-10,cond:-15}]},
+ {id:'heat',req:'med',supp:'heatPlan',t:"2pm, 44°C. {a} has gone quiet and pale and says {he}'s 'totally fine'.",
+  o:[{l:"Stop work. Shade, water, rest. Log it.",r:"{He}'s OK by 5. Logged as heat illness, first aid only.",m:5,data:-3},
+     {l:"Push on, it's only an hour.",r:"{He} goes down. Medic. Day lost. Recordable.",m:-20,data:-10,inc:1,c:400,inj:1},
+     {l:"Send {him} to the site medic now.",r:"IV fluids. Fine tomorrow. Recordable, but handled.",inc:1}]},
+ {id:'checkin',req:'sat',supp:'comms',t:"You missed the 6pm check-in. Head office has started the call tree. {a}'s mum has been rung.",
+  o:[{l:"Ring in now and explain.",r:"Stood down. Colin is calm. Colin is always calm."},
+     {l:"Blame the sat phone.",r:"Head office pulls the logs. It wasn't the sat phone.",m:-10},
+     {l:"Let it run and see what happens.",r:"A helicopter is quoted. You ring in. $1,200 cancellation fee.",c:1200,m:-10,inc:1}]},
+ {id:'blast',pref:'veteran',t:"{a} took 'the old track' back to camp. The old track is inside a blast exclusion zone now. Site security has video.",
+  o:[{l:"Own it. Report it before they do.",r:"Re-induction and a talking-to. Recordable, but the site respects it.",inc:1,m:-5},
+     {l:"Say nothing.",r:"They already know. {a} is removed from site.",inc:1,m:-20,data:-15,rep:-8},
+     {l:"Argue the zone wasn't signed.",r:"It was. There's a photo of {a} next to the sign.",inc:1,m:-10,rep:-5}]},
+ {id:'threat',pref:'finds-rare-things',t:"{a} has found a threatened species right where the client's new haul road goes. The client rep is standing next to {him}.",
+  o:[{l:"Record it properly and tell the client straight.",r:"The client is unhappy. The data is clean. That's the job.",data:5,rep:-3},
+     {l:"Ask {a} to 'double check', quietly.",r:"{a} does not do quiet. The client hears.",data:3,m:-10,rep:-5},
+     {l:"Let the client rep talk to {a} alone.",r:"He tries to talk {him} out of it. {He} recites the Act. The record stands.",data:5,m:10,rep:-6}]},
+ {id:'gastro',t:"Camp kitchen served 'chicken surprise'. Half the crew are down with gastro. {a}, who had four plates, is fine.",
+  o:[{l:"Rest day for the sick.",r:"Half a day's data. Everyone recovers.",data:-8},
+     {l:"Push everyone out.",r:"Two end up at the site medic. Recordable.",inc:1,data:-12,m:-20},
+     {l:"Report it to the camp and rest them.",r:"Camp shrugs. The chicken remains a surprise.",data:-8,m:5}]},
+ {id:'fireban',t:"Total fire ban. No vehicles off formed roads. Half the gear is 3 km off the formed road.",
+  o:[{l:"Walk in.",r:"6 km round trip, 41°C. Gear retrieved. Everyone's shattered.",cond:-15,m:-5},
+     {l:"Leave it a day.",r:"A day of data lost. Nobody's hurt.",data:-8},
+     {l:"Drive in anyway, carefully.",r:"The site's vehicle tracker notices. Recordable.",inc:1,m:-10,rep:-5}]},
+ {id:'lostrep',t:"The client rep decided to tag along in his own ute. No UHF. He's now lost.",
+  o:[{l:"Stop work. Find him.",r:"Found at a lookout taking photos. Two hours gone.",data:-4,rep:3},
+     {l:"Ring site security.",r:"Found in ten minutes. He's embarrassed. He likes you now.",rep:5},
+     {l:"Keep working. He'll turn up.",r:"He turns up at dusk, having reported himself missing. Your name is on the report.",inc:1,rep:-8}]},
+ {id:'missing',pref:'fishing',t:"{a} is gone. Nobody saw {him} leave. {His} swag is here, {his} ute is here. {His} rod is not.",
+  o:[{l:"Search the creek line first.",r:"{He}'s at the waterhole with three cobbler, confused why you're upset."},
+     {l:"Start the missing-person procedure.",r:"Correct call. {He} walks in as you dial. Logged anyway.",m:-5,rep:2},
+     {l:"Wait till dark.",r:"{He}'s back at dusk. You've aged.",m:-10}]},
+ {id:'dust',t:"Dust storm. Visibility ten metres. The datasheets were on the bonnet.",
+  o:[{l:"Everyone in the ute. Wait it out.",r:"An hour. Datasheets gone.",data:-8},
+     {l:"{a} grabs the datasheets first.",r:"Sheets saved. {a} gets a face full of dust.",m:-5},
+     {l:"Keep working.",r:"{b} walks into a fence. Recordable. Sheets gone.",inc:1,data:-8,m:-10}]},
+ {id:'singlet',req:'ppe',t:"Site security at the trap line: 'Your bloke's not wearing long sleeves or glasses.' {a} is wearing a singlet.",
+  o:[{l:"Send {a} back to camp for the day.",r:"Half a day's data.",data:-5,m:-5},
+     {l:"Argue.",r:"Team escorted off site till tomorrow.",data:-15,m:-10,rep:-6},
+     {l:"Give {him} your shirt.",r:"You're now in a singlet. Security lets it go.",m:10}]},
+ {id:'perentie',pref:'snake-magnet',t:"{a} caught, and is holding, a large perentie. It has bitten {him}. {He} says it's fine. It's bleeding quite a lot.",
+  o:[{l:"First aid, site medic, log it.",r:"Four stitches. Recordable. {He}'s proud of it.",inc:1,inj:1},
+     {l:"Let {him} wrap it {him}self.",r:"Infected by day four. Medivac to Newman.",inc:1,c:2000,m:-15,data:-10,inj:3},
+     {l:"Ask why {he} picked it up.",r:"'Because it was there.' Medic. Recordable.",inc:1,inj:1}]},
+ {id:'roo',req:'veh',pref:'hard-on-vehicles',t:"{a} hit a roo on the way back to camp. The bull bar held. The radiator didn't.",
+  o:[{l:"Tow back to camp.",r:"$600 and half a day.",c:600,data:-5},
+     {l:"Keep driving, watch the temperature gauge.",r:"The engine cooks. $2,500. The site logs it.",c:2500,inc:1,m:-5},
+     {l:"Leave it. Walk the last 3 km.",r:"Done at dusk. Everyone's tired.",cond:-15,m:-5}]},
+ {id:'gate',req:'ind',t:"Security stops {a} at the gate. {His} induction isn't in the system.",
+  o:[{l:"Do it at the gate.",r:"Three hours in the gatehouse.",data:-8},
+     {l:"Argue.",r:"The whole team is held up. The client is told.",data:-12,m:-10,rep:-5},
+     {l:"Send {a} back to camp.",r:"One person down for the day.",data:-6,m:-5}]},
+ {id:'nojha',req:'jha',t:"The client's HSE rep asks to see the JHA. There isn't one.",
+  o:[{l:"Write one on the bonnet, now.",r:"An hour. It's not bad, for a bonnet.",data:-5},
+     {l:"Say it's in the email.",r:"She checks. It isn't.",rep:-10,m:-5},
+     {l:"Stand down until it's done properly.",r:"Half a day. The HSE rep writes something nice about you.",data:-10,rep:5}]},
+ {id:'flat',pref:'hard-on-vehicles',t:"Flat tyre, 80 km from anywhere. The spare is also flat.",
+  o:[{l:"Plug kit and compressor.",r:"Holds. Two hours lost.",data:-4},
+     {l:"Sat phone the site for a tyre.",r:"$500 and a long wait.",c:500,data:-6},
+     {l:"Drive on the rim, slowly.",r:"The rim does not survive. $1,400.",c:1400,m:-5}]},
+ {id:'reverse',t:"{a} reversed into the only piece of kit that was working.",
+  o:[{l:"Borrow from the other consultancy.",r:"They lend it. You owe them.",rep:-1},
+     {l:"Freight a replacement.",r:"$700. Arrives on the last day.",c:700,data:-4},
+     {l:"Work without it.",r:"Data is thinner for it.",data:-8,m:-5}]},
+];
+
+// ---------- client debrief (press conference) ----------
+// ctx: good (4+ stars), bad (<=2), inc (any recordable), thin (data<70), short, missed (mob gaps), any.
+// Answer effects: rep, board, m (team morale), best (morale for {best}), cash, tv [next trip for this client value change], leave chance for {best}.
+const DEBRIEF=[
+ {ctx:'good',q:"'Best survey we've had out of you. What did you do differently?'",
+  a:[{l:"Good people, good planning.",r:"Nods around the table.",rep:3},
+     {l:"Luck, mostly.",r:"They laugh. The board doesn't.",board:-2,m:5},
+     {l:"We sent {best}.",r:"{best} hears about it by lunch.",best:12,rep:1}]},
+ {ctx:'good',q:"'Can we get the same team next time?'",
+  a:[{l:"Yes.",r:"Written into the next scope.",rep:5},
+     {l:"Depends on the roster.",r:"Fair enough, they say.",rep:1},
+     {l:"At a premium.",r:"They agree, less warmly.",tv:.12,rep:-4}]},
+ {ctx:'good',q:"'Your {best} was excellent. Would they consider working for us?'",
+  a:[{l:"No.",r:"They smile. They'll ask {best} directly.",best:-3},
+     {l:"Ask them yourself.",r:"They do.",leave:.35,best:10},
+     {l:"Only if you double their pay.",r:"Laughter. A note is made.",rep:2}]},
+ {ctx:'inc',q:"The client's HSE lead: 'Walk me through the recordable.'",
+  a:[{l:"Here's the report, the root cause and the fix.",r:"She's satisfied.",rep:4,board:2},
+     {l:"It was minor.",r:"She writes 'minor' down and underlines it.",rep:-6},
+     {l:"One of ours made a bad call.",r:"Accurate. The crew hear about it.",rep:-1,m:-10}]},
+ {ctx:'inc',q:"'Should we be worried about your safety performance?'",
+  a:[{l:"Here are our last twelve months of stats.",r:"The stats help.",rep:2,board:1},
+     {l:"No.",r:"They are now slightly more worried.",rep:-4},
+     {l:"We're running first aid and heat training before your next job.",r:"They like that. It'll cost you.",rep:5,cash:-1500}]},
+ {ctx:'thin',q:"'The data's thin. Why?'",
+  a:[{l:"Weather and access. Here's the daily log.",r:"The log helps.",rep:2},
+     {l:"The crew had a rough week.",r:"Sympathy, briefly.",rep:-3,m:5},
+     {l:"We'll come back and fill the gaps at our cost.",r:"$6,000 of goodwill.",cash:-6000,rep:9}]},
+ {ctx:'short',q:"'You were short-staffed. Were we told?'",
+  a:[{l:"Yes, in the mob email.",r:"They find it. It was in paragraph six.",rep:-1},
+     {l:"No. That's on us.",r:"Honesty lands.",rep:1,board:-1},
+     {l:"The team covered it.",r:"The data says otherwise.",rep:-4}]},
+ {ctx:'missed',q:"'Your crew arrived without {miss}.'",
+  a:[{l:"We know. It's fixed for next time.",r:"Noted.",rep:1},
+     {l:"It didn't affect the work.",r:"They disagree.",rep:-5},
+     {l:"New process, starting now.",r:"You now have a new process.",rep:3,board:1}]},
+ {ctx:'bad',q:"'Frankly, we're looking at other consultants.'",
+  a:[{l:"What would it take?",r:"A discount on the next job.",tv:-.15,rep:10},
+     {l:"Understood. We'll earn it back.",r:"They'll see.",rep:3},
+     {l:"Good luck with them.",r:"The crew love it. The board does not.",rep:-15,board:-5,m:10}]},
+ {ctx:'any',q:"A journalist at the airport: 'Is it true you found a threatened species on a mine lease?'",
+  a:[{l:"No comment.",r:"Fine."},
+     {l:"Talk to the client.",r:"The client appreciates that.",rep:4},
+     {l:"Yes, and it's lovely.",r:"The client does not appreciate that. The crew do.",rep:-10,board:-4,m:10}]},
+ {ctx:'any',q:"'Our graduate wants to shadow your team next trip.'",
+  a:[{l:"Happy to.",r:"Goodwill, and one more person to keep alive.",rep:5},
+     {l:"Not this time.",r:"Understood.",rep:-1},
+     {l:"Only if they do the inductions properly.",r:"They respect that.",rep:3}]},
+ {ctx:'any',q:"'The invoice is higher than the quote.'",
+  a:[{l:"Here are the variations, signed.",r:"All signed. Paid.",rep:1},
+     {l:"We'll absorb the difference.",r:"Appreciated.",cash:-3000,rep:6},
+     {l:"Scope changed on site.",r:"'Did it.' Not a question.",rep:-3}]},
+];
+
+// ---------- training camps ----------
+const CAMPS=[
+ {id:'4wd',n:'4WD & recovery course',cost:3200,pick:2,cd:10,d:"Two people. +2 Fieldcraft, and the vehicle incidents get less likely while they're on a trip.",fx:{field:2,trait:'4wd-ticket'}},
+ {id:'fa',n:'Remote first aid refresher',cost:2400,pick:0,cd:26,d:"Everyone. For the rest of the season, some recordables become first aid only.",fx:{flag:'firstAid'}},
+ {id:'comms',n:'Comms & check-in drill',cost:1200,pick:0,cd:26,d:"Everyone. The missed check-in incident stops happening this season.",fx:{flag:'comms'}},
+ {id:'heat',n:'Heat stress & hydration',cost:900,pick:0,cd:26,d:"Everyone. Heat illness stops being forced when medicals are skipped.",fx:{flag:'heatPlan'}},
+ {id:'rotto',n:'Team building on Rottnest',cost:5200,pick:0,cd:20,d:"Everyone. +15 morale. Bikes are involved.",fx:{morale:15,risk:.3}},
+ {id:'forms',n:'Forms bootcamp',cost:1800,pick:3,cd:8,d:"Three people. +2 Admin, -5 morale.",fx:{admin:2,morale:-5}},
+];
+
+// ---------- recruitment ----------
+const NAMES={he:['Ben','Tom','Kev','Mick','Josh','Liam','Ravi','Sam','Hamish','Nick','Ahmed','Luke','Wes','Jonno','Mat','Callum','Sione','Dev'],she:['Nadia','Shaz','Kirsty','Mel','Hannah','Aroha','Lucy','Jess','Mei','Tayla','Bec','Georgia','Priti','Zoe','Kate','Anika']};
+const ARCH=[
+ {role:'Graduate Ecologist',w:3,age:[22,26],field:[5,9],admin:[8,14],rel:[8,15],fit:[13,18],wage:[1250,1450],traits:['keen','no-licence','over-prepares','names-animals','laminator','sharp']},
+ {role:'Ecologist',w:3,age:[27,40],field:[11,16],admin:[8,14],rel:[7,16],fit:[10,15],wage:[1800,2150],traits:['solid','distractible','wants-promotion','emails-clients','sharp','ex-competitor']},
+ {role:'Senior Ecologist',w:1,age:[40,56],field:[15,19],admin:[4,12],rel:[6,15],fit:[6,11],wage:[2250,2700],traits:['veteran','allergic-to-forms','snake-magnet','no-nonsense']},
+ {role:'Field Tech',w:2,age:[24,50],field:[10,14],admin:[3,8],rel:[6,17],fit:[13,19],wage:[1450,1800],traits:['ex-drilling','loses-things','good-in-a-crisis','hard-on-vehicles','cuts-corners','no-nonsense']},
+ {role:'GIS / Data',w:1,age:[24,42],field:[3,7],admin:[14,19],rel:[11,18],fit:[5,10],wage:[1600,1900],traits:['office-only','fixes-everything','quiet','sharp']},
+ {role:'Botanist',w:1,age:[27,48],field:[13,18],admin:[6,12],rel:[6,14],fit:[9,14],wage:[1900,2300],traits:['distractible','finds-rare-things','names-animals','quiet']},
+ {role:'Subcontractor',w:1,age:[35,55],field:[10,15],admin:[1,5],rel:[3,10],fit:[9,14],wage:[1700,2000],traits:['unreachable','fishing','unbothered']},
+];
+const CV_LINES=["Honours in frogs. Has never driven a manual.","Six years with a rival. Left 'for family reasons'.","Twenty years on drill rigs. 'Ran the camp.'","Lists 'Excel (advanced)' and 'Excel (expert)' as separate skills.","Cover letter is addressed to a different company.","Photo shows them holding a python. The python looks unhappy.","Claims 'extensive Pilbara experience'. The dates suggest one week.","Speaks three languages. One is SQL.","Hobbies: 'laminating'.","Employee of the Month four times at a company with two employees.","Gap year spent 'finding myself' on a mine site.","Has a drone licence and mentions it twice.","Currently employed by one of your clients.","Left last job after 'an incident with a camp cook'.","PhD on subterranean fauna. Has seen daylight.","Previously ran a food truck. Can cook for twelve.","Knows every bird call. Will demonstrate.","Referee listed as 'Mum (ecologist)'.","Four-page CV. Page three is a photo of a sunset.","Has a snake-handling ticket and a photo of the ticket."];
+const IQ=[
+ {k:'field',s:'Trip gone wrong?',q:"Tell me about a trip that went wrong.",a:{hi:"Bogged at a creek crossing, dug out by lunch, still had the traps in before dark.",mid:"We got a bit lost. The client didn't notice. We found the site eventually.",lo:"I don't really do outside. Is outside a big part of this?"}},
+ {k:'admin',s:'Forms?',q:"How do you feel about forms?",a:{hi:"I have a colour-coding system. Would you like to see it? It's laminated.",mid:"Fine. I do them. Not always the same day.",lo:"What kind of forms? Like, paper?"}},
+ {k:'rel',s:'Monday, 6am?',q:"Monday, 6am, you're rostered on. Where are you?",a:{hi:"At the depot at 5:40 with the ute loaded.",mid:"Depot. Maybe quarter past. Depends on the Graham Farmer.",lo:"Depends what happened Sunday."}},
+ {k:'fit',s:'12 km in 40°?',q:"Could you walk 12 km in 40 degrees with a pack?",a:{hi:"Did 20 last weekend for fun.",mid:"With breaks, yeah.",lo:"Could I drive it?"}},
+ {k:'trait',s:'Why leaving?',q:"Why are you leaving your current job?",a:{}},
+];
+const TRAIT_ANS={'veteran':"They keep changing things. I don't like things changed.",'allergic-to-forms':"Too much paperwork.",'snake-magnet':"They got funny about me handling the wildlife.",'over-prepares':"They didn't read my process documents.",'laminator':"They took away the laminator.",'emails-clients':"I was told to stop emailing the client. I was being helpful.",'loses-things':"There was a thing with a sat phone. It's been found now.",'hard-on-vehicles':"Fleet and me had a falling out.",'parking-fines':"It's closer to the courthouse here.",'cuts-corners':"They were slow. I like to get things done.",'good-in-a-crisis':"Nothing ever happened there. I like it when something happens.",'distractible':"Sorry, is that a Grevillea outside your window?",'names-animals':"They wouldn't let me put names on the datasheets.",'finds-rare-things':"I found something on their client's lease. It got awkward.",'unreachable':"Sorry, I missed your first three calls.",'fishing':"The office was too far from the water.",'unbothered':"No reason. Just felt like it.",'solid':"No room to move up.",'wants-promotion':"I was ready for Senior. They weren't.",'office-only':"They wanted me in the field. I'm a desk person.",'fixes-everything':"I rebuilt their booking system. They didn't ask me to.",'on-loan-from-seed':"I'm on loan, technically. From everyone.",'quiet':"...",'keen':"I want to do everything! Is there a lot to do here?",'no-licence':"It's on the train line.",'ex-drilling':"Drilling's winding down and the camp food was worse than me.",'ex-competitor':"Better offer, if this is one.",'sharp':"They had a gap in their sampling design and didn't want to hear it.",'no-nonsense':"Nobody there did anything on time."};
+
+// ---------- inbox events ----------
+// Each fn returns a mail or null (not applicable). Effects are plain data so saved games replay them.
+// Effect keys: cash, board, rep:[client,d], s:{id,...stat deltas, wage, contract, inj, role, trait}, all:{morale,cond},
+// leave:id, flag, unflag, addTrip:{...}, tripVal:[client,pct], promise:{client,id}, recruit:role, temp:{...},
+// chance:{p,win,lose}, out:'result text'.
+const INBOX=[
+ {id:'sick',cd:6,fn(){const s=rs();if(!s)return null;return {from:s.name,face:s.face,subj:'Sick day',body:`${s.name} is "crook". ${P(s).His} Instagram is at Rottnest.`,
+  opts:[{l:'Let it go',e:{s:{id:s.id,morale:5},out:'Let go. Noted by everyone.'}},{l:'Have a word',e:{s:{id:s.id,rel:1,morale:-12},out:'Had a word. Reliability +1, morale down.'}}]}}},
+ {id:'invoice',cd:5,fn(){const c=rc();return {from:CLIENTS[c],face:'client',subj:'Re: Re: Re: invoice',body:`${CLIENTS[c]} dispute an invoice from a trip nobody remembers.`,
+  opts:[{l:'Credit them $2,000',e:{cash:-2000,rep:[c,8],out:'Credited. They like you more.'}},{l:'Stand firm',e:{rep:[c,-6],out:'Stood firm. They remember.'}}]}}},
+ {id:'form7c',cd:20,fn(){return {from:'Head Office',face:'colin',subj:'New form: 7C',body:'All trips now need Form 7C. There is no Form 7C.',
+  opts:[{l:'Make one',e:{board:3,out:'You made Form 7C. It is now official.'}},{l:'Ignore it',e:{out:'Nothing happened. Nothing ever happens.'}}]}}},
+ {id:'senior',cd:14,fn(){const s=rs(x=>x.traits.includes('wants-promotion')&&!/^Senior/.test(x.role));if(!s)return null;return {from:s.name,face:s.face,subj:'Development conversation',body:`${s.name} would like "Senior" in ${P(s).his} title. And $200 a week.`,
+  opts:[{l:'Give it',e:{s:{id:s.id,wage:200,morale:20,promo:1},out:'Promoted.'}},{l:'Next year',e:{s:{id:s.id,morale:-15},out:'"Next year." They heard "never".'}}]}}},
+ {id:'rustyad',cd:16,fn(){const s=staff('rusty');if(!s)return null;return {from:'Rusty',face:'rusty',subj:'Fwd: Fwd: Fwd: opportunity',body:'Rusty has forwarded you a job ad from a competitor. No comment.',
+  opts:[{l:'Ask him about it',e:{s:{id:'rusty',morale:10},out:'He says it was "for Dazza". It was not for Dazza.'}},{l:'Ignore it',e:{s:{id:'rusty',morale:-10},out:'Ignored. He noticed.'}}]}}},
+ {id:'parking',cd:12,fn(){const s=rs(x=>x.traits.includes('parking-fines'));if(!s)return null;return {from:s.name,face:s.face,subj:'Pay advance?',body:`${s.name} needs $600 for "the parking thing". ${P(s).He} will pay it back. ${P(s).He} says.`,
+  opts:[{l:'Advance it',e:{cash:-600,s:{id:s.id,morale:12},out:'Advanced. It will not be paid back.'}},{l:'Not your problem',e:{s:{id:s.id,morale:-8},out:'Declined.'}}]}}},
+ {id:'marcusinv',cd:14,fn(){const s=rs(x=>x.traits.includes('unreachable'));if(!s)return null;return {from:s.name,face:s.face,subj:'Invoice #0004',body:`${s.name} has invoiced a week of "consulting". Nobody remembers ${P(s).him} working.`,
+  opts:[{l:'Pay it',e:{cash:-1900,s:{id:s.id,morale:10},out:'Paid.'}},{l:'Query it',e:{chance:{p:.5,win:{out:'It was a mistake. Invoice withdrawn with a fish emoji.'},lose:{cash:-1900,s:{id:s.id,morale:-15},out:'He was working. On the Karratha job. Paid, and he is hurt.'}}}}]}}},
+ {id:'laminator',cd:18,fn(){const s=rs(x=>x.traits.includes('laminator'));if(!s)return null;return {from:s.name,face:s.face,subj:'Laminator',body:'The laminator has died. There was smoke.',
+  opts:[{l:'Buy a new one ($250)',e:{cash:-250,s:{id:s.id,morale:10},out:'New laminator. Colour-coded by lunch.'}},{l:'No',e:{s:{id:s.id,morale:-8},out:'No laminator. Things are unlaminated.'}}]}}},
+ {id:'orchid',cd:18,fn(){const s=rs(x=>x.traits.includes('finds-rare-things'));if(!s)return null;return {from:s.name,face:s.face,subj:'Paper?',body:`${s.name} wants a week to write up last trip's find for a journal.`,
+  opts:[{l:'Give them the week',e:{s:{id:s.id,morale:15,inj:0},rep:['dept',5],board:2,out:'Submitted. The Department noticed.'}},{l:'Back to work',e:{s:{id:s.id,morale:-10},out:'Back to work. The draft lives on.'}}]}}},
+ {id:'ute',cd:12,fn(){if(S.flags.ute)return null;return {from:'Fleet',face:'colin',subj:'Ute service overdue',body:'Two utes are 5,000 km past service. One has a new noise.',
+  opts:[{l:'Service them ($1,200)',e:{cash:-1200,out:'Serviced. The noise was a stick.'}},{l:'Next month',e:{flag:'ute',out:'Deferred. Vehicle incidents are more likely until it is done.'}}]}}},
+ {id:'utefix',cd:4,fn(){if(!S.flags.ute)return null;return {from:'Fleet',face:'colin',subj:'Re: Ute service overdue',body:'Still overdue. The noise is louder.',
+  opts:[{l:'Service them now ($1,500)',e:{cash:-1500,unflag:'ute',out:'Serviced. Price went up.'}},{l:'Still next month',e:{board:-2,out:'Fleet has escalated.'}}]}}},
+ {id:'extrajob',cd:8,fn(){const c=rc();return {from:CLIENTS[c],face:'client',subj:'Quick job?',body:`${CLIENTS[c]} want a 3-day survey in three weeks. Short notice.`,
+  opts:[{l:'Accept',e:{addTrip:{client:c,days:3,inWeeks:3},rep:[c,4],out:'Added to the season.'}},{l:'Decline',e:{rep:[c,-4],out:'Declined. They note it.'}}]}}},
+ {id:'poach',cd:10,fn(){const s=rs(x=>x.field>=14||x.admin>=16);if(!s)return null;return {from:'Recruiter',face:'client',subj:`Re: ${s.name}`,body:`A competitor has offered ${s.name} 20% more. ${P(s).He} has told you, which means ${P(s).he}'s thinking about it.`,
+  opts:[{l:'Match it',e:{s:{id:s.id,wage:Math.round(s.wage*.15),contract:52,morale:10},out:'Matched, and re-signed for a year.'}},{l:'Wish them well',e:{leave:s.id,out:`${s.name} has gone.`}},{l:'Call the bluff',e:{chance:{p:.5,win:{s:{id:s.id,morale:-10},out:'It was a bluff. Stays, sulking.'},lose:{leave:s.id,out:'It was not a bluff.'}}}}]}}},
+ {id:'cuts',cd:18,fn(){return {from:'Head Office',face:'colin',subj:'Cost review',body:'Head office wants 10% off discretionary spend. Mostly the fruit bowl.',
+  opts:[{l:'Comply',e:{board:4,all:{morale:-5},out:'Fruit bowl gone. Morale follows.'}},{l:'Push back',e:{board:-4,out:'The fruit bowl stays.'}}]}}},
+ {id:'bday',cd:5,fn(){const s=rs();if(!s)return null;return {from:'Reception',face:'colin',subj:`${s.name}'s birthday`,body:`It's ${s.name}'s birthday. Nobody has organised anything.`,
+  opts:[{l:'Buy a cake ($60)',e:{cash:-60,all:{morale:3},s:{id:s.id,morale:8},out:'Cake. Candles. The smoke alarm.'}},{l:'Leave it',e:{s:{id:s.id,morale:-8},out:'Forgotten. Remembered by them.'}}]}}},
+ {id:'xmas',cd:52,fn(){if(S.week<40)return null;return {from:'Social committee',face:'colin',subj:'Christmas party',body:'Budget for the Christmas party?',
+  opts:[{l:'$3,000, venue booked',e:{cash:-3000,all:{morale:10},out:'Good night. Rusty did a speech.'}},{l:'BYO at the park',e:{all:{morale:3},chance:{p:.25,win:{board:-4,out:'Someone did a burnout in the car park.'},lose:{out:'Pleasant. Early night.'}}}}]}}},
+ {id:'audit',cd:16,fn(){const s=rs(x=>x.admin>=13);return {from:'Head Office',face:'colin',subj:'Safety audit next week',body:'Head office HSE is auditing the office. Everything will be looked at.',
+  opts:[s?{l:`${s.name} preps it`,e:{board:6,s:{id:s.id,cond:-25,morale:-5},out:'Passed well. '+s.name+' is tired.'}}:{l:'Prep it yourself',e:{board:3,out:'Passed.'}},{l:'Wing it',e:{chance:{p:.5,win:{board:2,out:'Passed. Somehow.'},lose:{board:-8,out:'Failed on the first aid kit. It had a sandwich in it.'}}}}]}}},
+ {id:'mango',cd:10,fn(){return {from:'Mango',face:'radio',subj:'17 overdue actions',body:'You have 17 overdue actions in the safety system. Some are from 2023.',
+  opts:[{l:'Close them out',e:{board:4,out:'Closed. It took an afternoon.'}},{l:'Let them sit',e:{board:-4,out:'Now 19.'}}]}}},
+ {id:'newrep',cd:14,fn(){const c=rc();return {from:CLIENTS[c],face:'client',subj:'New contact',body:`Your contact at ${CLIENTS[c]} has left. The replacement is 'reviewing all suppliers'.`,
+  opts:[{l:'Take them to lunch ($300)',e:{cash:-300,rep:[c,6],out:'Lunch went well.'}},{l:'Wait and see',e:{rep:[c,-8],out:'They reviewed you.'}}]}}},
+ {id:'permit',cd:18,fn(){return {from:'The Department',face:'client',subj:'Permit delay',body:'Your fauna licence renewal is "in the queue". The queue is long.',
+  opts:[{l:'Chase it daily',e:{rep:['dept',-3],out:'Renewed. They know your voice now.'}},{l:'Wait',e:{tripVal:['dept',-.1],out:'Renewed late. The next Department job is trimmed to fit.'}}]}}},
+ {id:'radio',cd:20,fn(){const s=rs(x=>x.field>=14);if(!s)return null;return {from:'ABC Regional',face:'radio',subj:'Interview request',body:`Local radio wants ${s.name} to talk about threatened species.`,
+  opts:[{l:`Let ${s.name} talk`,e:{s:{id:s.id,morale:10},chance:{p:.5,win:{board:8,out:'Great interview. Clients heard it.'},lose:{board:-6,out:'Said "mate" eleven times and named a client.'}}}},{l:'No comment',e:{out:'Declined.'}}]}}},
+ {id:'borrow',cd:14,fn(){return {from:'The Other Mob',face:'client',subj:'Borrow your harp traps?',body:'The competitor wants to borrow your harp traps for a week.',
+  opts:[{l:'Lend them',e:{chance:{p:.7,win:{board:2,out:'Returned clean, with a carton.'},lose:{cash:-800,out:'Returned in pieces.'}}}},{l:'No',e:{out:'Declined.'}}]}}},
+ {id:'nineday',cd:14,fn(){const s=rs(x=>x.age<40);if(!s)return null;return {from:s.name,face:s.face,subj:'Nine-day fortnight?',body:`${s.name} wants a nine-day fortnight.`,
+  opts:[{l:'Yes',e:{s:{id:s.id,morale:15,cond:10},out:'Approved.'}},{l:'No',e:{s:{id:s.id,morale:-10},out:'Declined.'}}]}}},
+ {id:'workexp',cd:20,fn(){if(S.staff.some(x=>x.temp))return null;return {from:'UWA',face:'client',subj:'Work experience',body:'A uni student wants six weeks of unpaid work experience.',
+  opts:[{l:'Take them on',e:{temp:{role:'Work Experience',weeks:6},out:'They start Monday. They are very keen.'}},{l:'Decline',e:{out:'Declined.'}}]}}},
+ {id:'software',cd:22,fn(){const s=rs(x=>x.admin>=15);return {from:'Head Office',face:'colin',subj:'New software rollout',body:'Head office is rolling out new timesheet software. They want a champion in each team.',
+  opts:[s?{l:`${s.name} champions it`,e:{s:{id:s.id,admin:1,morale:5},board:3,out:s.name+' becomes the timesheet person, forever.'}}:{l:'You champion it',e:{board:2,out:'You are the timesheet person now.'}},{l:'Resist',e:{board:-3,all:{morale:3},out:'The team loves you. Head office does not.'}}]}}},
+ {id:'dog',cd:20,fn(){const s=staff('dazza');if(!s)return null;return {from:'Dazza',face:'dazza',subj:'Dog?',body:'Can Dazza bring his dog in on Fridays? The dog is "very well behaved".',
+  opts:[{l:'Yes',e:{all:{morale:6},chance:{p:.3,win:{cash:-150,out:'The dog ate a sat phone charger. Worth it.'},lose:{out:'The dog is very well behaved.'}}}},{l:'No',e:{s:{id:'dazza',morale:-10},out:'No dog.'}}]}}},
+ {id:'fixer',cd:14,fn(){const s=rs(x=>x.traits.includes('fixes-everything'));if(!s)return null;return {from:s.name,face:s.face,subj:'Fixed the booking system',body:`${s.name} fixed the vehicle booking system over the weekend. Unasked.`,
+  opts:[{l:'$500 bonus',e:{cash:-500,s:{id:s.id,morale:15},out:'Bonus paid.'}},{l:'Say thanks',e:{s:{id:s.id,morale:3},out:'Thanked.'}}]}}},
+ {id:'fuelcard',cd:20,fn(){const s=rs(x=>x.rel<=8);if(!s)return null;return {from:'Finance',face:'colin',subj:'Fuel card',body:'Someone has been fuelling a private car on a company card. Finance has a guess.',
+  opts:[{l:'Investigate',e:{chance:{p:.6,win:{s:{id:s.id,morale:-15,rel:1},cash:600,out:`${s.name}. Paid back. Awkward.`},lose:{all:{morale:-5},out:'Couldn\'t prove it. Everyone felt suspected.'}}}},{l:'Leave it',e:{cash:-1500,out:'It continues.'}}]}}},
+ {id:'wantperson',cd:12,fn(){const s=rs(x=>x.field>=12&&!x.traits.includes('office-only'));const c=rc();if(!s||S.promise)return null;return {from:CLIENTS[c],face:'client',subj:'Next trip',body:`${CLIENTS[c]} want ${s.name} on their next job.`,
+  opts:[{l:'Promise it',e:{promise:{client:c,id:s.id},rep:[c,5],out:`Promised. Don't forget.`}},{l:"Can't promise",e:{rep:[c,-3],out:'Understood, they say.'}}]}}},
+ {id:'cyclone',cd:52,fn(){if(S.week<8||S.week>20||S.flags.cyclone)return null;return {from:'Insurer',face:'client',subj:'Cyclone season cover',body:'Extra cover for cyclone season: $2,000.',
+  opts:[{l:'Take it',e:{cash:-2000,flag:'cyclone',out:'Covered. Incident costs are halved this season.'}},{l:'Risk it',e:{out:'Uncovered.'}}]}}},
+ {id:'masters',cd:26,fn(){const s=rs(x=>x.age<32);if(!s)return null;return {from:s.name,face:s.face,subj:'Masters',body:`${s.name} wants to do a part-time Masters. Fees are $2,000, and ${P(s).he}'d commit for another year.`,
+  opts:[{l:'Support it',e:{cash:-2000,s:{id:s.id,morale:15,field:1,contract:26},out:'Enrolled.'}},{l:'Not now',e:{s:{id:s.id,morale:-10},out:'Not now.'}}]}}},
+ {id:'knee',cd:12,fn(){const s=rs(x=>x.age>=35);if(!s)return null;return {from:s.name,face:s.face,subj:'Knee',body:`${s.name} did ${P(s).his} knee at netball. ${P(s).He} says ${P(s).he}'s fine.`,
+  opts:[{l:'Rest two weeks',e:{s:{id:s.id,inj:2},out:'Rested.'}},{l:"Take their word",e:{chance:{p:.4,win:{s:{id:s.id,inj:4,morale:-5},out:'It was not fine. Four weeks out.'},lose:{out:'It was fine.'}}}}]}}},
+ {id:'proposal',cd:20,fn(){const s=rs(x=>x.traits.includes('over-prepares'));if(!s||S.flags.process)return null;return {from:s.name,face:s.face,subj:'Mob process proposal (14 pp)',body:`${s.name} has written a 14-page proposal to fix the mob process.`,
+  opts:[{l:'Adopt it',e:{flag:'process',s:{id:s.id,morale:15},board:2,out:'Adopted. Mob tasks are a little more likely to go cleanly.'}},{l:'File it',e:{s:{id:s.id,morale:-10},out:'Filed. In a drawer.'}}]}}},
+ {id:'goanna',cd:30,fn(){if(!staff('rusty'))return null;return {from:'Staff newsletter',face:'colin',subj:'The goanna story',body:"Rusty's goanna story made the staff newsletter. It's got 40 comments.",
+  opts:[{l:'Lean in',e:{all:{morale:5},out:'Goanna mugs are ordered.'}},{l:'Ask them to take it down',e:{s:{id:'rusty',morale:-12},out:'Taken down. Rusty tells it louder.'}}]}}},
+ {id:'latepay',cd:10,fn(){const c=rc();return {from:'Finance',face:'colin',subj:`${CLIENTS[c]} paying late`,body:`${CLIENTS[c]} are 60 days late on $18,000.`,
+  opts:[{l:'Chase hard',e:{cash:3000,rep:[c,-4],out:'Paid, with a late fee. Frosty.'}},{l:'Be patient',e:{rep:[c,2],out:'They appreciate it.'}}]}}},
+ {id:'boardvisit',cd:20,fn(){return {from:'Colin',face:'colin',subj:'Board member visit',body:'A board member wants to "see the field".',
+  opts:[{l:'Take them to site ($1,500)',e:{cash:-1500,chance:{p:.8,win:{board:8,out:'They loved it. They held a gecko.'},lose:{board:-10,out:'They got lost. There was a search.'}}}},{l:'Office tour',e:{board:2,out:'They saw the laminator.'}}]}}},
+ {id:'seedrecall',cd:52,fn(){const s=rs(x=>x.traits.includes('on-loan-from-seed'));if(!s)return null;return {from:'Seed team',face:'colin',subj:`${s.name}`,body:`The Seed team want ${s.name} back permanently.`,
+  opts:[{l:'Let him go back',e:{leave:s.id,board:4,out:`${s.name} returns to Seed.`}},{l:'Fight for him',e:{board:-3,chance:{p:.7,win:{s:{id:s.id,morale:10},out:'He stays.'},lose:{leave:s.id,out:'Seed win.'}}}}]}}},
+ {id:'grads',cd:16,fn(){return {from:'HR',face:'colin',subj:'Grad intake',body:'Three strong graduate applications have come in. One stands out.',
+  opts:[{l:'Put them in the market',e:{recruit:'Graduate Ecologist',out:'A graduate is on the Recruit screen.'}},{l:'Pass',e:{out:'Passed.'}}]}}},
+ {id:'mhfa',cd:30,fn(){return {from:'HR',face:'colin',subj:'Mental health first aid',body:'A two-day mental health first aid course is available.',
+  opts:[{l:'Sign everyone up ($1,800)',e:{cash:-1800,all:{morale:8},board:2,out:'Done. It was good.'}},{l:'Not this year',e:{out:'Not this year.'}}]}}},
+ {id:'kitchen',cd:12,fn(){const s=rs(x=>!x.traits.includes('office-only'));if(!s)return null;return {from:'Camp manager',face:'client',subj:'Your crew',body:`The camp says ${s.name} took twelve sausages at breakfast. There is a limit of three.`,
+  opts:[{l:'Apologise',e:{board:1,s:{id:s.id,morale:-5},out:'Apologised.'}},{l:'Defend them',e:{s:{id:s.id,morale:10},board:-2,out:'"They were hungry."'}}]}}},
+ {id:'heatwave',cd:30,fn(){if(S.flags.heatPlan)return null;return {from:'BOM',face:'radio',subj:'Heatwave outlook',body:'Heatwave conditions are forecast for the Pilbara and Goldfields for the next month.',
+  opts:[{l:'Issue a hydration procedure',e:{flag:'heatPlan',board:3,out:'Issued. Heat illness is less likely to be forced on trips.'}},{l:'Business as usual',e:{out:'Noted.'}}]}}},
+ {id:'linkedin',cd:26,fn(){return {from:'LinkedIn',face:'radio',subj:'Former employee',body:'A former employee has posted about your office. It has 300 likes.',
+  opts:[{l:'Respond publicly',e:{board:-3,out:'It now has 900 likes.'}},{l:'Ignore it',e:{out:'It fades.'}}]}}},
+ {id:'satfound',cd:40,fn(){const s=rs(x=>x.traits.includes('loses-things'));if(!s)return null;return {from:'Karratha depot',face:'radio',subj:'Found property',body:`A sat phone labelled '${s.name.toUpperCase()} DO NOT LOSE' has been handed in.`,
+  opts:[{l:'Freight it back',e:{cash:-60,out:'Returned. It will be lost again.'}},{l:'Donate it to the depot',e:{board:1,out:'The depot is grateful.'}}]}}},
+ {id:'survey',cd:26,fn(){return {from:'HR',face:'colin',subj:'Staff survey results',body:'Engagement is down. The comments mention "the fruit bowl" 14 times.',
+  opts:[{l:'Act on it ($2,000)',e:{cash:-2000,all:{morale:10},out:'Fruit bowl back. Other things fixed.'}},{l:'Publish it and move on',e:{all:{morale:-5},out:'Published.'}}]}}},
+ {id:'conference',cd:30,fn(){const s=rs(x=>x.field>=13);if(!s)return null;return {from:'Ecological Society',face:'client',subj:'Conference talk',body:`${s.name} has been invited to present at the state conference.`,
+  opts:[{l:'Send them ($1,200)',e:{cash:-1200,s:{id:s.id,morale:12},rep:[rc(),4],board:2,out:'Good talk. Two clients were in the room.'}},{l:'Too busy',e:{s:{id:s.id,morale:-8},out:'Declined.'}}]}}},
+ {id:'tender',cd:14,fn(){const c=rc();return {from:CLIENTS[c],face:'client',subj:'Tender',body:`${CLIENTS[c]} have a 6-day tender open. Writing it takes a week of admin time.`,
+  opts:[{l:'Bid',e:{chance:{p:.5,win:{addTrip:{client:c,days:6,inWeeks:5},out:'Won. It is on the Season screen.'},lose:{out:'Lost to the other mob by $400.'}},all:{cond:-5}}},{l:'Skip it',e:{out:'Skipped.'}}]}}},
+];
+
+// =====================================================================
+// ENGINE — pure game logic. No DOM in here, so the balance harness can
+// drive a whole season headlessly.
+// =====================================================================
+const SEASON_WEEKS=46, COST_PD=420, VAL_PD=3000, REV_TARGET=820000, SAFETY_LIMIT=2, CLIENT_MIN=4;
+const R=Math.random, rint=(a,b)=>a+Math.floor(R()*(b-a+1)), pick=a=>a[Math.floor(R()*a.length)];
 const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v));
-const stat=(v,hi=14,lo=7)=>`<span class="stat ${v>=hi?'hi':v<=lo?'lo':''}">${v}</span>`;
-function mail(from,subj,body,opts){S.inbox.unshift({from,subj,body,opts,read:false,wk:S.week});}
-function nextTrip(){return S.trips.find(t=>!t.result)}
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const money=n=>(n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString();
+const PR={he:{he:'he',him:'him',his:'his',He:'He',His:'His'},she:{he:'she',him:'her',his:'her',He:'She',His:'Her'}};
+const P=s=>PR[s&&s.p]||PR.he;
+let S=null;
+
+function START(){const s={season:1,week:1,cash:60000,revenue:0,desk:0,recordables:0,board:60,
+ staff:JSON.parse(JSON.stringify(STAFF0)).map(x=>({...x,cond:100,inj:0,apps:0,recs:0,since:1,known:true})),
+ market:[],trips:[],clientRep:{newm:60,s32:60,rio:60,dept:60,lith:60},
+ inbox:[],log:[],cd:{},seen:{},flags:{},busy:[],training:{},att:3,camps:{},promise:null,
+ trip:null,pick:[],screen:'title',view:'office',tripSeq:0,apSeq:0,history:[],rustyOneMore:0};
+ S=s;s.trips=TRIPS0.map(t=>mkTrip(t));s.target=targetFor(1);for(let i=0;i<4;i++)s.market.push(genApplicant());return s}
+function targetFor(season){return {rev:Math.round(REV_TARGET*(1+.08*(season-1))/5000)*5000,safety:SAFETY_LIMIT,clients:CLIENT_MIN}}
+function mkTrip(t){const n=t.need.field+t.need.admin;return {...t,id:'t'+(++S.tripSeq),val:Math.round(t.days*n*VAL_PD*(1+.06*(S.season-1))/1000)*1000,result:null}}
+
+// ---------- helpers ----------
+const staff=id=>S.staff.find(s=>s.id===id);
+function rs(f){const a=S.staff.filter(s=>!s.temp&&(!f||f(s)));return a.length?pick(a):null}
+function rc(){return pick(Object.keys(CLIENTS))}
+function tpl(str,x={}){const p=x.p||null,pp=P(p);return String(str)
+ .replace(/\{n\}|\{a\}/g,p?p.name:'').replace(/\{b\}/g,x.b||'').replace(/\{o\}/g,x.o||'someone').replace(/\{c\}/g,x.c||'')
+ .replace(/\{best\}/g,x.best||'the team').replace(/\{miss\}/g,x.miss||'')
+ .replace(/\{he\}/g,pp.he).replace(/\{him\}/g,pp.him).replace(/\{his\}/g,pp.his).replace(/\{He\}/g,pp.He).replace(/\{His\}/g,pp.His)}
+function otherName(excl,pool){const a=(pool||S.staff).filter(s=>s.id!==excl&&!s.temp);return a.length?pick(a).name:'someone'}
+function avail(s){return s&&!s.inj&&!S.busy.includes(s.id)}
+function nextTrip(){return S.trips.filter(t=>!t.result).sort((a,b)=>a.wk-b.wk)[0]}
+function tripById(id){return S.trips.find(t=>t.id===id)}
+function log(t){S.log.push(`W${S.week}: ${t}`);if(S.log.length>120)S.log.shift()}
+function mail(m){S.inbox.unshift({...m,read:false,wk:S.week,done:null});if(S.inbox.length>60)S.inbox.pop()}
 function unread(){return S.inbox.filter(m=>!m.read).length}
-function hud(){const t=nextTrip();return `<div class="hud">
- <div><b>Week</b>${S.week} / ${SEASON_WEEKS}</div>
- <div><b>Cash</b>${money(S.cash)}</div>
- <div><b>Revenue</b>${money(S.revenue)}<div class="fine">target ${money(BOARD0.revenue)}</div></div>
- <div><b>Recordables</b>${S.recordables} / ${BOARD0.safety}</div>
- <div><b>Board</b>${S.board}%<div class="bar"><i class="${S.board<35?'bad':S.board<55?'warn':''}" style="width:${S.board}%"></i></div></div>
- <div><b>Next trip</b>${t?`Wk ${t.wk} · ${t.days}d`:'Season over'}</div></div>`}
+function removeStaff(id,why){const s=staff(id);if(!s)return;S.staff=S.staff.filter(x=>x.id!==id);delete S.training[id];if(why)log(`${s.name} ${why}`);
+ S.history.push({name:s.name,role:s.role,apps:s.apps,left:`S${S.season} W${S.week}`});
+ if(S.promise&&S.promise.id===id)S.promise.gone=true}
+function bumpStat(s,k,d){if(['field','admin','rel','fit'].includes(k))s[k]=clamp(s[k]+d,1,20);else s[k]=clamp(s[k]+d)}
 
-// ---------- nav ----------
-const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
-function nav(){$('#nav').innerHTML=VIEWS.map(([k,l])=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${l}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+`<button class="btn" id="advance" ${nextTrip()&&nextTrip().wk===S.week?'style="color:var(--title);font-weight:bold"':''}>${nextTrip()&&nextTrip().wk===S.week?'▶ Trip!':'▶ Next week'}</button>`;
- $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;render()});
- $('#advance').onclick=()=>{sfx.click();advance()}}
-function render(){S.screen='game';save();nav();({office,squad,season,inbox,train,recruit,board})[S.view]();}
+// ---------- declarative effects (inbox, debrief, camps) ----------
+function applyE(e){if(!e)return '';let out=e.out||'';
+ if(e.cash)S.cash+=e.cash;
+ if(e.board)S.board=clamp(S.board+e.board);
+ if(e.rep&&S.clientRep[e.rep[0]]!=null)S.clientRep[e.rep[0]]=clamp(S.clientRep[e.rep[0]]+e.rep[1]);
+ if(e.s){const s=staff(e.s.id);if(s){for(const k of ['morale','cond','field','admin','rel','fit'])if(e.s[k])bumpStat(s,k,e.s[k]);
+  if(e.s.wage)s.wage+=e.s.wage;if(e.s.contract)s.contract+=e.s.contract;if(e.s.inj!=null)s.inj=Math.max(s.inj,e.s.inj);
+  if(e.s.promo&&!/^Senior/.test(s.role))s.role='Senior '+s.role;if(e.s.trait&&!s.traits.includes(e.s.trait))s.traits.push(e.s.trait)}}
+ if(e.all)S.staff.forEach(s=>{if(e.all.morale)bumpStat(s,'morale',e.all.morale);if(e.all.cond)bumpStat(s,'cond',e.all.cond)});
+ if(e.leave)removeStaff(e.leave,'has left.');
+ if(e.flag)S.flags[e.flag]=true;
+ if(e.unflag)delete S.flags[e.unflag];
+ if(e.addTrip)addTrip(e.addTrip);
+ if(e.tripVal){const t=S.trips.find(x=>!x.result&&x.client===e.tripVal[0]);if(t)t.val=Math.round(t.val*(1+e.tripVal[1])/100)*100}
+ if(e.promise)S.promise={...e.promise};
+ if(e.recruit)S.market.unshift(genApplicant(e.recruit));
+ if(e.temp){const f=genFace();const p=pick(['he','she']);S.staff.push({id:'tmp'+(++S.apSeq),name:pick(NAMES[p]),p,role:e.temp.role,face:f,age:20,field:4,admin:7,rel:10,fit:16,morale:95,cond:100,inj:0,wage:0,contract:e.temp.weeks,traits:['keen','no-licence'],apps:0,recs:0,since:S.season,temp:true,known:true})}
+ if(e.chance){const w=R()<e.chance.p;const o2=applyE(w?e.chance.win:e.chance.lose);out=[out,o2].filter(Boolean).join(' ')}
+ return out}
+function addTrip(a){const k=TRIP_GEN.kinds.find(x=>x.type===(a.type||'flora'))||TRIP_GEN.kinds[1];
+ const place=(TRIP_GEN.places.find(p=>p[1]===a.client)||TRIP_GEN.places[0]);
+ let wk=S.week+(a.inWeeks||3);while(S.trips.some(t=>!t.result&&Math.abs(t.wk-wk)<1))wk++;
+ if(wk>SEASON_WEEKS-1)return;
+ const t=mkTrip({wk,client:a.client,name:`${pick(k.names)}, ${place[0]}`,type:k.type,days:a.days||3,need:{field:2,admin:a.days>4?1:0},hazard:place[2]});
+ S.trips.push(t);S.trips.sort((x,y)=>x.wk-y.wk);log(`New job: ${t.name} (wk ${t.wk}).`)}
 
-// ---------- screens ----------
-function title(){S=S||START();S.screen='title';screen.innerHTML=`
- <h1>FIELD MANAGER '96</h1><h2>The office is yours. Good luck.</h2>
- <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin<br>Head Office</div></div>
- <div class="bub">Eight staff, twelve trips, forty-six weeks. The board wants ${money(BOARD0.revenue)} of revenue, no more than ${BOARD0.safety} recordables, and at least ${BOARD0.clients} clients still returning our calls in December.<br><br>Rusty's contract is up in ${STAFF0[0].contract} weeks. He hasn't mentioned it. That's how you know he's thinking about it.</div></div>
- <div class="row" style="margin-top:14px"><button class="btn big" id="start">▶ NEW SEASON</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
- <p class="fine" style="margin-top:14px">Bones build. Trips resolve on a stat roll for now; the interactive mob-and-field engine drops in later.</p>`;
- portrait($('#hostcv'),'colin');$('#nav').innerHTML='';
- $('#start').onclick=()=>{sfx.ring();S=START();seedInbox();S.view='office';render()};
- const c=$('#cont');if(c)c.onclick=()=>{try{S=JSON.parse(localStorage.getItem('fm96'))}catch(e){}render()};
- $('#mute').onclick=e=>{muted=!muted;e.target.textContent='Sound: '+(muted?'OFF':'ON')};status('Insert disc.')}
+// ---------- inbox trigger ----------
+function maybeInbox(force){if(!force&&R()>.55)return;
+ const pool=INBOX.filter(x=>(S.cd[x.id]||0)<=S.week);
+ for(let tries=0;tries<8&&pool.length;tries++){const i=Math.floor(R()*pool.length),x=pool[i];pool.splice(i,1);
+  const m=x.fn();if(m){S.cd[x.id]=S.week+x.cd;mail(m);return}}}
+function answerMail(i,j){const m=S.inbox[i];if(!m||m.done||!m.opts)return;const o=m.opts[j];const out=applyE(o.e);m.done=out||o.l;log(`${m.subj}: ${o.l}.`)}
 
-function office(){const t=nextTrip();const wk=S.week;
- screen.innerHTML=`${hud()}<h2>Office — week ${wk}</h2>
- <div class="cols"><div>
-  <h3>This week</h3>
-  ${t&&t.wk===wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week. ${t.days} days for ${CLIENTS[t.client]}. Pick the team on the Season screen, or hit Trip.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}).</p>`:'<p>No more trips this season. Go to Board.</p>'}
-  ${unread()?`<p>${unread()} unread in the inbox.</p>`:''}
-  <h3>Wages</h3><p>${money(S.staff.reduce((a,s)=>a+s.wage,0))}/week across ${S.staff.length} staff.</p>
-  <h3>Watch list</h3>
-  ${S.staff.filter(s=>s.contract<=8||s.morale<40).map(s=>`<p>· ${s.name}: ${s.contract<=8?`contract ends in ${s.contract} wk`:''}${s.contract<=8&&s.morale<40?', ':''}${s.morale<40?'morale low':''}</p>`).join('')||'<p class="fine">Nobody on the watch list.</p>'}
- </div><div>
-  <h3>Recent</h3><div class="log" style="border:0;margin:0;padding:0">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')||'<div>Season started.</div>'}</div>
- </div></div>`;status(t&&t.wk===wk?'Trip week.':'Office.')}
-
-function squad(sel){
- screen.innerHTML=`${hud()}<h2>Squad</h2><div class="twrap"><table><tr><th></th><th>Name</th><th>Role</th><th>Age</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Mor</th><th>Wage</th><th>Ctr</th></tr>
- ${S.staff.map(s=>`<tr class="pick ${sel===s.id?'sel':''}" data-id="${s.id}"><td><canvas id="cv-${s.id}"></canvas></td><td>${s.name}</td><td class="fine">${s.role}</td><td>${s.age}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${stat(s.morale,70,40)}</td><td>${money(s.wage)}</td><td>${s.contract}</td></tr>`).join('')}</table></div>
- <div id="detail"></div>`;
- S.staff.forEach(s=>{portrait($('#cv-'+s.id),s.face);$(`[data-id=${s.id}]`).onclick=()=>{sfx.click();squad(s.id)}});
- if(sel){const s=S.staff.find(x=>x.id===sel);$('#detail').innerHTML=`<h3>${s.name} · ${s.role}</h3><p>Traits: ${s.traits.map(t=>`<span class="tag">${t}</span>`).join('')}</p>
-  <div class="row"><button class="btn sm" id="renew">Offer new contract (+52 wk, +10% wage)</button><button class="btn sm" id="fire">Let go (4 wk payout)</button></div>`;
-  $('#renew').onclick=()=>{sfx.good();s.contract+=52;s.wage=Math.round(s.wage*1.1);s.morale=clamp(s.morale+10);S.log.push(`${s.name} re-signed to wk ${S.week+s.contract}.`);squad(sel)};
-  $('#fire').onclick=()=>{sfx.bad();S.cash-=s.wage*4;S.staff=S.staff.filter(x=>x.id!==s.id);S.staff.forEach(x=>x.morale=clamp(x.morale-8));S.log.push(`${s.name} let go. Squad morale down.`);squad()}}
- status('Squad.')}
-
-function season(){
- screen.innerHTML=`${hud()}<h2>Season — ${S.trips.length} trips</h2><div class="twrap"><table><tr><th>Wk</th><th>Client</th><th>Trip</th><th>Days</th><th>Needs</th><th>Value</th><th>Result</th></tr>
- ${S.trips.map((t,i)=>`<tr class="${t.result?'out':''} ${t.wk===S.week?'sel':''}"><td>${t.wk}</td><td>${CLIENTS[t.client]}</td><td>${esc(t.name)}</td><td>${t.days}</td><td class="fine">${t.need.field}F ${t.need.admin}A</td><td>${money(t.val)}</td><td>${t.result?`${t.result.stars}★ ${t.result.rec?t.result.rec+' rec':''}`:t.wk===S.week?'<b>NOW</b>':'—'}</td></tr>`).join('')}</table></div>
- <h3>Client relations</h3><div class="hud">${Object.entries(S.clientRep).map(([k,v])=>`<div><b>${CLIENTS[k]}</b>${v}%<div class="bar"><i class="${v<35?'bad':v<55?'warn':''}" style="width:${v}%"></i></div></div>`).join('')}</div>`;status('Fixtures.')}
-
-function inbox(){
- screen.innerHTML=`${hud()}<h2>Inbox</h2>${S.inbox.length?S.inbox.map((m,i)=>`<div class="mail ${m.read?'':'unread'}" data-i="${i}"><div class="from">${esc(m.from)} · wk ${m.wk}</div><b>${esc(m.subj)}</b><div>${esc(m.body)}</div>${m.opts&&!m.done?`<div class="row" style="margin-top:6px">${m.opts.map((o,j)=>`<button class="btn sm" data-i="${i}" data-j="${j}">${esc(o.l)}</button>`).join('')}</div>`:m.done?`<div class="fine">→ ${esc(m.done)}</div>`:''}</div>`).join(''):'<p class="fine">Nothing. Suspicious.</p>'}`;
- S.inbox.forEach(m=>m.read=true);nav();
- screen.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{sfx.click();const m=S.inbox[b.dataset.i],o=m.opts[b.dataset.j];const r=o.fn();m.done=r||o.l;S.log.push(`Inbox: ${m.subj} → ${o.l}`);inbox()});
- status('Inbox.')}
-
-function train(){
- // TODO [4]: camps, injuries, fatigue. Bones: one stat +1 per week per person, costs $500.
- screen.innerHTML=`${hud()}<h2>Training — this week</h2><p class="fine">Each session: +1 to a stat, $500, and they're unavailable if a trip mobilises this week. Reliability is the hard one.</p>
- <div class="twrap"><table><tr><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Plan</th></tr>
- ${S.staff.map(s=>`<tr><td>${s.name}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>
-  <select id="tr-${s.id}" data-id="${s.id}" style="font-family:var(--font-body);font-size:18px"><option value="">—</option><option value="field">Fieldcraft</option><option value="admin">Admin / forms</option><option value="rel">Reliability (50% chance)</option><option value="fit">Fitness</option></select></td></tr>`).join('')}</table></div>`;
- S.staff.forEach(s=>{const el=$('#tr-'+s.id);el.value=S.training[s.id]||'';el.onchange=()=>{S.training[s.id]=el.value;save()}});status('Training.')}
-
-function recruit(){
- screen.innerHTML=`${hud()}<h2>Recruitment</h2><p class="fine">CVs are what they say they are. Interviews cost a week of your attention. Hiring costs 2 weeks' wages up front.</p>
- ${S.market.map(a=>`<div class="mail"><div class="row"><canvas id="mk-${a.id}"></canvas><div><b>${a.name}</b> · ${a.role} · ${a.age}<div class="fine">${esc(a.cv)}</div></div></div>
-  <div class="row" style="margin-top:6px"><span class="fine">Fld ${stat(a.field)} Adm ${stat(a.admin)} Rel ${a.seen?stat(a.rel):'??'} Fit ${stat(a.fit)} · ${money(a.wage)}/wk</span><button class="btn sm" data-int="${a.id}" ${a.seen?'disabled':''}>Interview</button><button class="btn sm" data-hire="${a.id}">Hire</button></div></div>`).join('')||'<p class="fine">Market is empty. TODO [3]: applicant generator.</p>'}`;
- S.market.forEach(a=>{portrait($('#mk-'+a.id),a.face);
-  $(`[data-int="${a.id}"]`).onclick=()=>{sfx.meh;a.seen=true;S.log.push(`Interviewed ${a.name}. Reliability turns out to be ${a.rel}.`);recruit()};
-  $(`[data-hire="${a.id}"]`).onclick=()=>{sfx.good();S.cash-=a.wage*2;S.market=S.market.filter(x=>x.id!==a.id);S.staff.push(a);S.log.push(`Hired ${a.name}.`);S.view='squad';render()}});
- status('Recruit.')}
-
-function board(){const done=S.trips.filter(t=>t.result).length;const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
- screen.innerHTML=`${hud()}<h2>Board — Colin's view</h2>
- <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin</div></div><div class="bub">${done} of ${S.trips.length} trips done. Revenue ${money(S.revenue)} against ${money(BOARD0.revenue)}. ${S.recordables} recordable${S.recordables===1?'':'s'}, limit ${BOARD0.safety}. ${happy} client${happy===1?'':'s'} still taking our calls.<br><br>${S.board>=70?'Carry on.':S.board>=45?'The board has "questions".':'The board has a name in mind. It is not yours.'}</div></div>
- <h3>Targets</h3><div class="hud">
-  <div><b>Revenue</b>${Math.round(S.revenue/BOARD0.revenue*100)}%<div class="bar"><i style="width:${clamp(S.revenue/BOARD0.revenue*100)}%"></i></div></div>
-  <div><b>Safety</b>${S.recordables<=BOARD0.safety?'On track':'Over'}</div>
-  <div><b>Clients</b>${happy} / ${BOARD0.clients}</div></div>
- ${S.week>=SEASON_WEEKS||!nextTrip()?`<div class="row" style="margin-top:14px"><button class="btn big" id="endseason">▶ END OF SEASON REVIEW</button></div>`:''}`;
- portrait($('#hostcv'),'colin');const e=$('#endseason');if(e)e.onclick=()=>{sfx.click();endSeason()};status('Board.')}
-
-// ---------- weekly loop ----------
-function advance(){const t=nextTrip();
- if(t&&t.wk===S.week)return pickTeam(t);
- // training
- for(const id in S.training){const k=S.training[id];const s=S.staff.find(x=>x.id===id);if(!s||!k)continue;S.cash-=500;
-  if(k==='rel'){if(Math.random()<.5){s.rel=Math.min(20,s.rel+1);S.log.push(`${s.name} reliability +1.`)}else S.log.push(`${s.name} did the reliability course. Nothing changed.`)}
-  else{s[k]=Math.min(20,s[k]+1)}}
+// ---------- weekly tick ----------
+function deskValue(s){if(s.temp)return 0;return Math.round((s.admin*28+s.field*9)*(.55+s.cond/220))}
+function weekTick(o={}){const team=o.team||[];
+ for(const id in S.training){const k=S.training[id],s=staff(id);if(!s||!k||team.includes(id)||!avail(s))continue;S.cash-=500;s.cond=clamp(s.cond-8);
+  if(k==='rel'){if(R()<.45){s.rel=clamp(s.rel+1,1,20);log(`${s.name} reliability +1.`)}else log(`${s.name} did the reliability course. Nothing changed.`)}
+  else{const cap=s.age>=50?16:20;if(s[k]<cap)s[k]=clamp(s[k]+1,1,20)}}
  S.training={};
- // wages, contracts, morale drift
- S.staff.forEach(s=>{S.cash-=s.wage;s.contract--;s.morale=clamp(s.morale+(Math.random()<.5?-1:1));
-  if(s.contract===4)mail(s.name,'Quick chat when you have a sec?',`${s.name}'s contract ends in 4 weeks. They have not said anything else. That is the message.`,[{l:'Renew now (+10%)',fn(){s.contract+=52;s.wage=Math.round(s.wage*1.1);s.morale=clamp(s.morale+10);return 'Renewed.'}},{l:'Let it run',fn(){s.morale=clamp(s.morale-10);return 'Noted. So did they.'}}]);
-  if(s.contract===0){S.staff=S.staff.filter(x=>x.id!==s.id);S.log.push(`${s.name}'s contract ended. Gone.`);mail('Head Office','Departure',`${s.name} has left. Their laptop has not.`)}});
- S.week++;weeklyEvent();
- if(S.week>SEASON_WEEKS){S.view='board'}
+ let desk=0;
+ S.staff.slice().forEach(s=>{S.cash-=s.wage;
+  if(!team.includes(s.id)){if(avail(s))desk+=deskValue(s);s.cond=clamp(s.cond+20)}
+  if(s.inj>0)s.inj--;
+  s.contract--;
+  s.morale=clamp(s.morale+(s.morale<55?1:s.morale>80?-1:0)+(R()<.5?-1:1));
+  if(s.morale<25&&!s.temp&&R()<.08){mail({from:s.name,face:s.face,subj:'Resignation',body:`${s.name} has resigned. ${P(s).He} says it's "not you". It's partly you.`});removeStaff(s.id,'resigned.');return}
+  if(s.contract===4&&!s.temp){const nw=Math.round(s.wage*(1.06+(s.morale<50?.08:0)+(Math.max(s.field,s.admin)>=16?.05:0))/10)*10;
+   mail({from:s.name,face:s.face,subj:'Quick chat when you have a sec?',body:`${s.name}'s contract ends in 4 weeks. ${P(s).He}'d want ${money(nw)}/wk to stay.`,
+    opts:[{l:`Renew at ${money(nw)} (+52 wk)`,e:{s:{id:s.id,contract:52,wage:nw-s.wage,morale:8},out:'Renewed.'}},{l:'Let it run out',e:{s:{id:s.id,morale:-10},out:'Noted. So did they.'}}]})}
+  if(s.contract<=0){if(s.temp){log(`${s.name}'s work experience ended. They left a thank-you card.`);S.staff=S.staff.filter(x=>x.id!==s.id)}
+   else{removeStaff(s.id,'finished up. Contract ended.');mail({from:'Head Office',face:'colin',subj:`${s.name} has left`,body:`${s.name}'s contract ended. Their laptop has not.`})}}});
+ S.cash+=desk;S.revenue+=desk;S.desk+=desk;
+ S.busy=[];S.att=3;
+ if(S.week%4===0)refreshMarket();
+ S.week++;
+ boardUpdate();
+ maybeInbox()}
+
+// ---------- board ----------
+function boardConf(){const tv=S.trips.reduce((a,t)=>a+t.val,0)||1,dv=S.trips.filter(t=>t.result).reduce((a,t)=>a+t.val,0);
+ const frac=Math.max(.12,(dv/tv)*.8+(Math.min(S.week,SEASON_WEEKS)/SEASON_WEEKS)*.2);
+ const r1=S.revenue/(S.target.rev*frac);
+ let c=55+clamp((r1-1)*90,-35,18);
+ c+=clamp((S.target.safety-S.recordables)*8,-48,8);
+ c+=(avg(Object.values(S.clientRep))-60)*.6;
+ if(S.cash<0)c-=Math.min(30,6+(-S.cash/10000)*3);
+ c+=(avg(S.staff.map(s=>s.morale))-60)*.15;
+ return clamp(c)}
+function boardUpdate(){S.board=Math.round(clamp(S.board*.75+boardConf()*.25))}
+
+// ---------- recruitment ----------
+function genApplicant(role){const a=role?(ARCH.find(x=>x.role===role)||ARCH[0]):(()=>{const tot=ARCH.reduce((x,y)=>x+y.w,0);let r=R()*tot;for(const x of ARCH){if((r-=x.w)<0)return x}return ARCH[0]})();
+ const p=pick(['he','she']);const used=new Set(S.staff.map(s=>s.name).concat(S.market.map(s=>s.name)));
+ const name=pick(NAMES[p].filter(n=>!used.has(n)))||pick(NAMES[p]);
+ const st={field:rint(...a.field),admin:rint(...a.admin),rel:rint(...a.rel),fit:rint(...a.fit)};
+ const honest=R()<.35,bl=honest?0:rint(1,4);
+ const cv={field:clamp(st.field+rint(0,bl),1,20),admin:clamp(st.admin+rint(0,bl),1,20),rel:clamp(st.rel+rint(0,bl),1,20)};
+ const tr=[...a.traits].sort(()=>R()-.5).slice(0,R()<.3?1:2);
+ const quality=(cv.field+cv.admin+cv.rel)/60;
+ const wage=Math.round((a.wage[0]+(a.wage[1]-a.wage[0])*quality)/10)*10;
+ const lo=clamp(st.rel-rint(0,3),1,20);
+ return {id:'ap'+(++S.apSeq),name,p,role:a.role,face:genFace(),age:rint(...a.age),...st,morale:70,cond:100,inj:0,wage,contract:52,traits:tr,apps:0,recs:0,
+  cv,known:{},relRange:[lo,clamp(lo+4,1,20)],dodgy:R()<.3,cvText:pick(CV_LINES),listed:S.week,qa:[]}}
+function refreshMarket(){S.market=S.market.filter(a=>S.week-a.listed<8);while(S.market.length<4)S.market.push(genApplicant())}
+function interview(aid,k){const a=S.market.find(x=>x.id===aid);if(!a||S.att<=0)return;S.att--;
+ const q=IQ.find(x=>x.k===k);let ans;
+ if(k==='trait'){ans=TRAIT_ANS[a.traits[0]]||'Just time for a change.';a.known.trait=true}
+ else{const v=a[k];ans=v>=14?q.a.hi:v>=9?q.a.mid:q.a.lo;a.known[k==='rel'?'relRange':k]=true}
+ a.qa.push({q:q.q,a:ans})}
+function reference(aid){const a=S.market.find(x=>x.id===aid);if(!a||S.att<=0||a.known.ref)return;S.att--;a.known.ref=true;
+ if(a.dodgy){a.qa.push({q:'Reference check',a:"The referee says they're the best worker they've ever seen. The referee has the same surname."});a.known.dodgy=true}
+ else{a.known.rel=true;a.qa.push({q:'Reference check',a:a.rel>=14?"'Never late. Never once. It was almost annoying.'":a.rel>=9?"'Solid. Needed reminding sometimes.'":"'...Can I call you back?' They don't call back."})}}
+function hire(aid){const a=S.market.find(x=>x.id===aid);if(!a)return;S.cash-=a.wage*2;S.market=S.market.filter(x=>x.id!==aid);
+ const {cv,known,relRange,dodgy,cvText,listed,qa,...s}=a;S.staff.push({...s,since:S.season,known:true});log(`Hired ${a.name} (${a.role}).`)}
+
+// ---------- training camps ----------
+function campReady(c){return (S.camps[c.id]||-99)+c.cd<=S.week+(S.season-1)*SEASON_WEEKS&&!(nextTrip()&&nextTrip().wk===S.week)}
+function runCamp(cid,ids){const c=CAMPS.find(x=>x.id===cid);if(!c||!campReady(c))return '';
+ const who=c.pick?ids.map(staff).filter(avail).slice(0,c.pick):S.staff.filter(avail);if(!who.length)return '';
+ S.cash-=c.cost;S.camps[c.id]=S.week+(S.season-1)*SEASON_WEEKS;const fx=c.fx;let out=`${c.n}: ${who.map(s=>s.name).join(', ')}.`;
+ who.forEach(s=>{S.busy.push(s.id);s.cond=clamp(s.cond-10);if(fx.field)bumpStat(s,'field',fx.field);if(fx.admin)bumpStat(s,'admin',fx.admin);if(fx.morale)bumpStat(s,'morale',fx.morale);if(fx.trait&&!s.traits.includes(fx.trait))s.traits.push(fx.trait)});
+ if(fx.flag)S.flags[fx.flag]=true;
+ if(fx.risk&&R()<fx.risk){const s=pick(who);s.inj=Math.max(s.inj,2);out+=` ${s.name} came off a bike avoiding a quokka. Two weeks out.`}
+ log(out);return out}
+
+// ---------- trip engine ----------
+// S.trip holds the whole trip as plain data, so a trip survives a reload mid-way.
+function startTrip(t,ids){const need=t.need.field+t.need.admin;
+ S.trip={id:t.id,team:ids.slice(),short:Math.max(0,need-ids.length),cover:Math.min(1,ids.length/need),phase:'mob',mobDays:MOB_DAYS,done:{},cost:0,log:[],data:0,rec:0,day:0,jobs:[],jobSt:{},dayUsed:[],ev:null,forced:{},incUsed:[],perf:{},last:null};
+ S.pick=[];S.screen='trip';if(S.trip.short)S.trip.log.push(`Going ${S.trip.short} short. Everyone doing two jobs.`)}
+function team(){return S.trip.team.map(staff).filter(Boolean)}
+function mobChance(s){return Math.max(.05,Math.min(.9,(s.admin*.45+s.rel*.55)/20*(.75+s.cond/400)*(.85+s.morale/670)+(S.flags.process?.06:0)))}
+function fieldChance(s){return Math.max(.05,Math.min(.92,(s.field*.5+s.rel*.3+s.fit*.2)/20*(.7+s.cond/333)*(.85+s.morale/670)-S.trip.short*.07))}
+function pickExcuse(pool,s){let keys=[];s.traits.forEach(tr=>(pool[tr]||[]).forEach((e,i)=>keys.push(tr+':'+i)));
+ const gen=(pool.generic||[]).map((e,i)=>'generic:'+i);if(!keys.length||R()<.2)keys=keys.concat(gen);
+ const min=Math.min(...keys.map(k=>S.seen[k]||0));keys=keys.filter(k=>(S.seen[k]||0)===min);const k=pick(keys);S.seen[k]=(S.seen[k]||0)+1;return k}
+function getExc(pool,k){const i=k.lastIndexOf(':');return pool[k.slice(0,i)][+k.slice(i+1)]}
+function evData(ev){if(ev.kind==='mob')return getExc(EXC_MOB,ev.k);if(ev.kind==='field')return getExc(EXC_FIELD,ev.k);return INCIDENTS[ev.k]}
+function evCtx(ev){if(ev.kind==='inc')return {p:staff(ev.a)||{name:ev.aName,p:'he'},b:ev.bName};return {p:staff(ev.who)||{name:'?',p:'he'},o:ev.o}}
+function mobAssign(tid,sid){const T=S.trip,s=staff(sid),task=MOB_TASKS.find(m=>m.id===tid);if(!s||!task||T.done[tid]||T.ev)return;
+ T.mobDays--;s.cond=clamp(s.cond-3);
+ if(R()<mobChance(s)){T.done[tid]=sid;T.cost+=task.c;T.last={clean:true,t:`${task.n}: ${s.name}. Done, no drama.`};T.log.push(T.last.t);return}
+ T.ev={kind:'mob',k:pickExcuse(EXC_MOB,s),who:sid,task:tid,o:otherName(sid)};T.last=null}
+function fly(){const T=S.trip,t=tripById(T.id);T.phase='field';T.day=1;T.dayUsed=[];T.ev=null;T.last=null;
+ const pool=[...JOBS[t.type]||JOBS.fauna];let pi=0;
+ for(let d=1;d<=t.days;d++){const j=[];for(let k=0;k<2;k++){if(d===1&&k===0)j.push(OPEN_JOB);else if(d===t.days&&k===1)j.push(CLOSE_JOB);else{j.push(pool[pi%pool.length]);pi++}}T.jobs.push(j)}
+ const missed=MOB_TASKS.filter(m=>!T.done[m.id]);
+ T.log.push(missed.length?`Flew without: ${missed.map(m=>m.n).join(', ')}.`:'Flew with everything done.');
+ missed.forEach(m=>{const i=INCIDENTS.findIndex(x=>x.req===m.id);if(i<0||(INCIDENTS[i].supp&&S.flags[INCIDENTS[i].supp])||R()>.75)return;
+  let d=rint(Math.min(2,t.days),t.days),tries=0;while(T.forced[d]!=null&&tries++<10)d=rint(1,t.days);T.forced[d]=i});
+ T.cost+=T.team.length*t.days*COST_PD}
+function jobVal(){return 100/(tripById(S.trip.id).days*2)*(S.trip.cover??1)}
+function dayJobsOpen(){const T=S.trip;return (T.jobs[T.day-1]||[]).map((n,j)=>({n,j,st:T.jobSt[T.day+':'+j]})).filter(x=>x.st==null)}
+function canWork(s){const T=S.trip;if(!s||s.inj)return false;const tm=team().filter(x=>!x.inj);return !T.dayUsed.includes(s.id)||tm.every(x=>T.dayUsed.includes(x.id))}
+function fieldAssign(j,sid){const T=S.trip,s=staff(sid),key=T.day+':'+j;if(!s||T.jobSt[key]!=null||T.ev||!canWork(s))return;
+ T.dayUsed.push(sid);s.cond=clamp(s.cond-8);const name=T.jobs[T.day-1][j];
+ if(R()<fieldChance(s)){T.jobSt[key]=sid;T.data+=jobVal();T.perf[sid]=(T.perf[sid]||0)+1;T.last={clean:true,t:`${name}: ${s.name}. Done.`};T.log.push(`D${T.day} ${T.last.t}`);return}
+ T.ev={kind:'field',k:pickExcuse(EXC_FIELD,s),who:sid,job:j,o:otherName(sid,team())};T.last=null}
+function resolveEv(i){const T=S.trip,ev=T.ev;if(!ev||ev.res!=null)return;const e=evData(ev),o=e.o[i],cx=evCtx(ev),t=tripById(T.id);ev.res=i;
+ if(ev.kind==='inc'){let rec=o.inc||0;const cost=(o.c||0)*(S.flags.cyclone?.5:1);
+  if(rec&&S.flags.firstAid&&R()<.35){rec=0;T.log.push('First aid training kicked in. Treated on site, not recordable.');ev.fa=true}
+  T.rec+=rec;T.cost+=cost;T.data+=o.data||0;if(o.rep)S.clientRep[t.client]=clamp(S.clientRep[t.client]+o.rep);
+  team().forEach(s=>{if(o.m)bumpStat(s,'morale',o.m);if(o.cond)bumpStat(s,'cond',o.cond)});
+  if(o.inj){const s=staff(ev.a);if(s){s.inj=Math.max(s.inj,o.inj);T.log.push(`${s.name} injured: ${o.inj} wk.`)}}
+  if(rec){const s=staff(ev.a);if(s)s.recs++}
+  T.log.push(`D${T.day} incident: ${tpl(o.l,{p:cx.p,b:cx.b})}${rec?' (recordable)':''}`);return}
+ const s=staff(ev.who);if(s){if(o.m)bumpStat(s,'morale',o.m);if(o.cond)bumpStat(s,'cond',o.cond)}T.cost+=o.c||0;
+ if(ev.kind==='mob'){T.mobDays-=o.d||0;const task=MOB_TASKS.find(m=>m.id===ev.task);if(o.done){T.done[ev.task]=ev.who;T.cost+=task.c}
+  T.log.push(`${task.n}: ${cx.p.name}. ${o.done?'Done':'Not done'}${o.d?` (+${o.d}d)`:''}${o.c?` (${money(o.c)})`:''}.`)}
+ else{const key=T.day+':'+ev.job;if(o.done){T.jobSt[key]=ev.who;T.data+=jobVal()*.75;T.perf[ev.who]=(T.perf[ev.who]||0)+1}else T.jobSt[key]='x';
+  T.data+=o.data||0;if(o.rep)S.clientRep[t.client]=clamp(S.clientRep[t.client]+o.rep);
+  T.log.push(`D${T.day} ${T.jobs[T.day-1][ev.job]}: ${cx.p.name}. ${o.done?'Done':'Not done'}.`)}}
+function closeEv(){const T=S.trip;if(T.ev&&T.ev.res!=null){const inc=T.ev.kind==='inc';T.ev=null;if(inc)nextDay()}}
+function endDay(){const T=S.trip,t=tripById(T.id);if(T.ev)return;
+ dayJobsOpen().forEach(x=>{T.jobSt[T.day+':'+x.j]='x'});
+ team().forEach(s=>{s.cond=clamp(s.cond-6)});
+ const tm=team();let idx=T.forced[T.day];
+ if(idx==null){const miss=MOB_TASKS.filter(m=>!T.done[m.id]).length;
+  let p=.07+t.hazard*.035+(S.flags.ute?.04:0)+T.short*.06+(avg(tm.map(s=>s.cond))<55?.08:0)+miss*.02-(tm.some(s=>s.traits.includes('4wd-ticket'))?.02:0);
+  if(R()<p){const pool=INCIDENTS.map((x,i)=>i).filter(i=>!INCIDENTS[i].req&&!T.incUsed.includes(i));if(pool.length)idx=pick(pool)}}
+ delete T.forced[T.day];
+ if(idx!=null&&tm.length){T.incUsed.push(idx);const inc=INCIDENTS[idx];
+  let a=(inc.pref&&tm.find(s=>s.traits.includes(inc.pref)&&!s.inj))||pick(tm);const others=tm.filter(s=>s.id!==a.id);const b=others.length?pick(others).name:'the client rep';
+  T.ev={kind:'inc',k:idx,a:a.id,aName:a.name,bName:b};return}
+ nextDay()}
+function nextDay(){const T=S.trip,t=tripById(T.id);T.ev=null;T.last=null;T.day++;T.dayUsed=[];if(T.day>t.days)finishTrip()}
+
+function finishTrip(){const T=S.trip,t=tripById(T.id),tm=team();T.phase='result';
+ const bestAdm=Math.max(0,...tm.map(s=>s.admin));
+ if(bestAdm<8){T.data-=8;T.log.push('Datasheets entered by someone who hates datasheets.')}else if(bestAdm>=15){T.data+=4;T.log.push('Datasheets clean and backed up.')}
+ const data=Math.round(clamp(T.data)),rec=T.rec,missed=MOB_TASKS.filter(m=>!T.done[m.id]).map(m=>m.n);
+ let stars=(data>=90?2:data>=70?1:0)+(rec===0?2:rec===1?1:0)+(missed.length===0?1:0);
+ const pay=Math.round(t.val*(.2+.8*data/100)/100)*100;
+ S.clientRep[t.client]=clamp(S.clientRep[t.client]+(stars-2.5)*5-rec*4);
+ if(S.promise&&S.promise.client===t.client){const ps=staff(S.promise.id);if(T.team.includes(S.promise.id)){S.clientRep[t.client]=clamp(S.clientRep[t.client]+5);T.log.push(`Promised ${ps?ps.name:'them'}, sent ${ps?ps.name:'them'}. Client pleased.`)}else{S.clientRep[t.client]=clamp(S.clientRep[t.client]-12);T.log.push(`Promised ${ps?ps.name:'someone'}, didn't send them. Client noticed.`)}S.promise=null}
+ tm.forEach(s=>{s.apps++;bumpStat(s,'morale',(stars>=4?6:stars<=1?-8:0)-rec*5)});
+ const best=tm.slice().sort((a,b)=>(T.perf[b.id]||0)-(T.perf[a.id]||0)||b.field-a.field)[0];
+ t.result={stars,data,rec,cost:Math.round(T.cost),pay,missed,team:tm.map(s=>s.name),best:best?best.id:null,short:T.short};
+ S.recordables+=rec;S.revenue+=pay;S.cash+=pay-T.cost;
+ log(`${t.name}: ${stars}★, data ${data}%, ${rec} recordable${rec===1?'':'s'}, paid ${money(pay)}.`);
+ if(rec>=2)mail({from:'Colin',face:'colin',subj:`We need to talk about ${t.name}`,body:'Two recordables on one trip. The client has rung. I have rung. Ring me.'});
+ weekTick({team:T.team})}
+function debriefPick(){const T=S.trip,t=tripById(T.id),r=t.result;const ctx=[];
+ if(r.rec)ctx.push('inc','inc');if(r.stars>=4)ctx.push('good','good');if(r.stars<=2)ctx.push('bad');if(r.data<70)ctx.push('thin');if(r.short)ctx.push('short');if(r.missed.length)ctx.push('missed');ctx.push('any');
+ const c=pick(ctx);const pool=DEBRIEF.map((d,i)=>i).filter(i=>DEBRIEF[i].ctx===c);T.deb=pick(pool);T.phase='debrief';T.debRes=null}
+function debriefAnswer(i){const T=S.trip,t=tripById(T.id),r=t.result,d=DEBRIEF[T.deb],a=d.a[i];if(T.debRes!=null)return;T.debRes=i;
+ const best=staff(r.best);
+ if(a.rep)S.clientRep[t.client]=clamp(S.clientRep[t.client]+a.rep);if(a.board)S.board=clamp(S.board+a.board);if(a.cash)S.cash+=a.cash;
+ if(a.m)team().forEach(s=>bumpStat(s,'morale',a.m));if(a.best&&best)bumpStat(best,'morale',a.best);
+ if(a.tv){const n=S.trips.find(x=>!x.result&&x.client===t.client);if(n)n.val=Math.round(n.val*(1+a.tv)/100)*100}
+ if(a.leave&&best&&R()<a.leave){removeStaff(best.id,`accepted a job with ${CLIENTS[t.client]}.`);T.debOut=`${best.name} took the job.`}}
+function endTrip(){S.trip=null;S.screen='game';S.view='office'}
+
+// ---------- auto-resolve ("let them get on with it") ----------
+function optScore(o,kind){if(kind==='inc')return -(o.inc||0)*35-(o.inj||0)*12-(o.c||0)/50+(o.m||0)*.5+(o.data||0)*1.5+(o.rep||0)*1.5+(o.cond||0)*.25;
+ return (o.done||0)*40-(o.d||0)*14-(o.c||0)/40+(o.m||0)*.4+(o.data||0)*2+(o.rep||0)*1.5+(o.cond||0)*.2}
+function autoChoice(q){const T=S.trip,ev=T.ev,e=evData(ev);if(R()<q){let bi=0,bs=-1e9;e.o.forEach((o,i)=>{const sc=optScore(o,ev.kind);if(sc>bs){bs=sc;bi=i}});return bi}return Math.floor(R()*e.o.length)}
+function crewJudgement(){return .35+avg(team().map(s=>s.rel))/40}
+function autoMob(q){const T=S.trip;q=q??crewJudgement();let guard=0;
+ while(T.mobDays>0&&guard++<40){if(T.ev){resolveEv(autoChoice(q));closeEv();continue}
+  const open=MOB_TASKS.filter(m=>!T.done[m.id]);if(!open.length)break;
+  const load={};Object.values(T.done).forEach(id=>load[id]=(load[id]||0)+1);
+  const c=S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>mobChance(b)-.12*(load[b.id]||0)-(mobChance(a)-.12*(load[a.id]||0)))[0];if(!c)break;
+  mobAssign(open[0].id,c.id)}
+ if(T.ev){resolveEv(autoChoice(q));closeEv()}}
+function autoDay(q){const T=S.trip;q=q??crewJudgement();const d=T.day;let guard=0;
+ while(T.day===d&&T.phase==='field'&&guard++<20){
+  if(T.ev){resolveEv(autoChoice(q));closeEv();continue}
+  const open=dayJobsOpen();
+  if(open.length){const c=team().filter(canWork).sort((a,b)=>fieldChance(b)-fieldChance(a))[0];if(!c){endDay();continue}fieldAssign(open[0].j,c.id);continue}
+  endDay()}}
+
+// ---------- seasons ----------
+function seasonVerdict(){const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
+ const revOK=S.revenue>=S.target.rev,safeOK=S.recordables<=S.target.safety,cliOK=happy>=S.target.clients;const met=[revOK,safeOK,cliOK].filter(Boolean).length;
+ const pass=met===3&&S.cash>=-20000;const title=pass?(S.board>=85?'MANAGER OF THE YEAR':'CONTRACT EXTENDED'):(met>=2&&S.board>=40?'PROBATION':'SACKED');
+ return {pass,title,happy,revOK,safeOK,cliOK,sacked:title==='SACKED'}}
+function testimonialDue(){const r=staff('rusty');return r&&(r.age>=55||r.apps>=14)}
+function testimonial(i){const r=staff('rusty');if(!r)return '';
+ if(i===0){r.contract=Math.max(r.contract,52);r.wage=Math.round(r.wage*.8/10)*10;bumpStat(r,'fit',-2);bumpStat(r,'morale',10);S.rustyOneMore++;return 'One more season. He says that every year.'}
+ if(i===1){S.cash-=1500;S.staff.forEach(s=>s!==r&&bumpStat(s,'morale',12));S.board=clamp(S.board+4);removeStaff('rusty','retired. Send-off at the depot.');S.rustyRetired=1;return 'Sausages, a speech, and the goanna story one last time. Three people cried. One was the goanna.'}
+ S.staff.forEach(s=>s!==r&&bumpStat(s,'morale',8));removeStaff('rusty','retired. Trap line 3 now bears his name.');S.rustyRetired=1;return "There's a sign on trap line 3 now. It says RUSTY'S LINE. Somebody has already moved it."}
+function newSeason(){const v=seasonVerdict();S.season++;S.week=1;S.revenue=0;S.desk=0;S.recordables=0;S.board=v.pass?Math.max(S.board,55):40;S.target=targetFor(S.season);
+ const keep={ute:S.flags.ute,process:S.flags.process};S.flags={};Object.keys(keep).forEach(k=>{if(keep[k])S.flags[k]=true});
+ const notes=[];
+ S.staff.slice().forEach(s=>{if(s.temp){S.staff=S.staff.filter(x=>x!==s);return}s.age++;s.cond=100;
+  if(s.age>=50)bumpStat(s,'fit',-rint(1,2));if(s.age>=55&&R()<.5)bumpStat(s,'field',-1);
+  if(s.age<=27){const k=pick(['field','admin','rel','fit']);bumpStat(s,k,s.traits.includes('keen')?2:1);notes.push(`${s.name} has come on: ${k} up.`)}
+  if(s.id!=='rusty'&&((s.age>=58&&R()<.35)||(s.age>=61&&R()<.75))){removeStaff(s.id,'retired.');notes.push(`${s.name} has retired.`)}});
+ Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=Math.round(S.clientRep[c]*.7+60*.3));
+ S.trips=genSeasonTrips();S.inbox=S.inbox.slice(0,10);refreshMarket();
+ mail({from:'Colin',face:'colin',subj:`Season ${S.season}`,body:`New season. The board want ${money(S.target.rev)}, no more than ${S.target.safety} recordables, and ${S.target.clients} clients happy. ${notes.join(' ')}`});
+ log(`Season ${S.season} begins.`)}
+function genSeasonTrips(){const out=[];let wk=2;
+ while(wk<=43){const pl=pick(TRIP_GEN.places),k=pick(TRIP_GEN.kinds);const days=rint(...k.days);
+  out.push(mkTrip({wk,client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days,need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]}));
+  wk+=rint(3,4)}
+ return out}
+
+// =====================================================================
+// UI
+// =====================================================================
+const $=s=>document.querySelector(s);const screen=$('#screen');
+const UI={task:null,job:null,camp:{},sel:null,ap:null};
+function save(){try{localStorage.setItem('fm96',JSON.stringify(S))}catch(e){}}
+function loadable(){try{const s=JSON.parse(localStorage.getItem('fm96'));return s&&s.screen&&s.screen!=='title'&&!s.over}catch(e){return false}}
+function status(t){$('#st1').textContent=t;$('#st2').textContent=S?`S${S.season} · Wk ${Math.min(S.week,SEASON_WEEKS)}/${SEASON_WEEKS}`:''}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const stat=(v,hi=14,lo=7)=>`<span class="stat ${v>=hi?'hi':v<=lo?'lo':''}">${v}</span>`;
+const cbar=v=>`<span class="cbar" title="Condition ${v}%"><i class="${v<45?'bad':v<70?'warn':''}" style="width:${v}%"></i></span>`;
+const bar=(v,w)=>`<div class="bar"><i class="${v<35?'bad':v<55?'warn':''}" style="width:${clamp(w??v)}%"></i></div>`;
+function faces(){screen.querySelectorAll('canvas[data-face]').forEach(c=>{const f=c.dataset.face;let face=f;if(f.startsWith('s:')){const s=staff(f.slice(2))||S.market.find(a=>a.id===f.slice(2));face=s?s.face:'colin'}portrait(c,face)})}
+const cv=(face)=>`<canvas data-face="${typeof face==='string'?face:''}"></canvas>`;
+const scv=s=>`<canvas data-face="s:${s.id}"></canvas>`;
+function talk(faceAttr,who,body){return `<div class="talk"><div><canvas data-face="${faceAttr}"></canvas><div class="who">${who}</div></div><div class="bub">${body}</div></div>`}
+
+function hud(){const t=nextTrip();return `<div class="hud">
+ <div><b>Week</b>${Math.min(S.week,SEASON_WEEKS)} / ${SEASON_WEEKS}</div>
+ <div><b>Cash</b><span style="color:${S.cash<0?'var(--red)':'inherit'}">${money(S.cash)}</span></div>
+ <div><b>Revenue</b>${money(S.revenue)}${bar(0,S.revenue/S.target.rev*100)}<div class="fine">of ${money(S.target.rev)}</div></div>
+ <div><b>Recordables</b><span style="color:${S.recordables>S.target.safety?'var(--red)':'inherit'}">${S.recordables} / ${S.target.safety}</span></div>
+ <div><b>Board</b>${S.board}%${bar(S.board)}</div>
+ <div><b>Next trip</b>${t?(t.wk<=S.week?'<span class="blink" style="color:var(--amber)">THIS WEEK</span>':`Wk ${t.wk}`):'None left'}</div></div>`}
+
+// ---------- nav & routing ----------
+const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
+function nav(){if(!S||S.screen!=='game'){$('#nav').innerHTML=S&&S.screen==='trip'?'<p class="fine" style="padding:6px">On site. The office is closed.</p>':'';return}const tw=nextTrip()&&nextTrip().wk<=S.week;
+ $('#nav').innerHTML=VIEWS.map(([k,l])=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${l}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
+ (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ Season review</b></button>`:`<button class="btn" id="advance">${tw?'<b>▶ Trip!</b>':'▶ Next week'}</button>`);
+ $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;UI.sel=null;render()});
+ $('#advance').onclick=()=>{sfx.click();advance()}}
+function render(){save();nav();
+ if(S.screen==='trip')return tripView();
+ if(S.screen==='pick')return pickTeam();
+ if(S.screen==='end')return endView();
+ if(S.screen==='testimonial')return testimonialView();
+ S.screen='game';nav();({office,squad,season,inbox,train,recruit,board})[S.view]();faces()}
+function advance(){if(S.week>SEASON_WEEKS){S.screen='end';return render()}
+ const t=nextTrip();if(t&&t.wk<=S.week){S.screen='pick';S.pick=[];return render()}
+ weekTick();
+ if(S.board<18&&S.week>10){S.screen='end';S.midSack=true;sfx.bad();return render()}
+ if(S.week>SEASON_WEEKS)S.view='board';
  render()}
 
-// TODO [2]: 40+ templates. Bones: a small pool.
-function weeklyEvent(){if(Math.random()>.5)return;const pool=[
- ()=>{const s=S.staff[Math.floor(Math.random()*S.staff.length)];if(!s)return;mail(s.name,'Sick day',`${s.name} is "crook". Their Instagram is at Rottnest.`,[{l:'Let it go',fn(){s.morale=clamp(s.morale+5);return 'Let it go.'}},{l:'Have a word',fn(){s.rel=Math.min(20,s.rel+1);s.morale=clamp(s.morale-10);return 'Had a word. Reliability +1, morale -10.'}}])},
- ()=>{const c=Object.keys(CLIENTS)[Math.floor(Math.random()*5)];mail(CLIENTS[c],'Re: Re: Re: invoice',`${CLIENTS[c]} disputes an invoice from a trip nobody remembers.`,[{l:'Credit them $2,000',fn(){S.cash-=2000;S.clientRep[c]=clamp(S.clientRep[c]+8);return 'Credited. They like you more.'}},{l:'Stand firm',fn(){S.clientRep[c]=clamp(S.clientRep[c]-6);return 'Stood firm. They remember.'}}])},
- ()=>mail('Head Office','New form: 7C',`All trips now need Form 7C. There is no Form 7C.`,[{l:'Make one',fn(){S.board=clamp(S.board+3);return 'You made Form 7C. It is now official.'}},{l:'Ignore',fn(){return 'Nothing happened.'}}]),
- ()=>{const s=S.staff.find(x=>x.traits.includes('wants-promotion'));if(!s)return;mail(s.name,'Development conversation',`${s.name} wants "Senior" in their title. And $200 a week.`,[{l:'Give it',fn(){s.wage+=200;s.morale=clamp(s.morale+20);s.role='Senior '+s.role;return 'Promoted.'}},{l:'Next year',fn(){s.morale=clamp(s.morale-15);return '"Next year." They heard "never".'}}])},
- ()=>{const s=S.staff.find(x=>x.id==='rusty');if(!s)return;mail('Rusty','Fwd: Fwd: Fwd: opportunity',`Rusty has forwarded you a job ad from a competitor with no comment.`,[{l:'Ask him about it',fn(){s.morale=clamp(s.morale+10);return 'He says it was "for Dazza". It was not for Dazza.'}},{l:'Ignore',fn(){s.morale=clamp(s.morale-10);return 'Ignored. He noticed.'}}])},
- ];pool[Math.floor(Math.random()*pool.length)]()}
+// ---------- title ----------
+function title(){screen.innerHTML=`
+ <h1>FIELD MANAGER '96</h1><h2>The office is yours. Good luck.</h2>
+ ${talk('colin','Colin<br>Head Office',`Eight staff, twelve trips, forty-six weeks. The board want revenue, no more than two recordables, and at least four clients still returning our calls in December.<br><br>Rusty's contract is up in 30 weeks. He hasn't mentioned it. That's how you know he's thinking about it.`)}
+ <div class="row" style="margin-top:14px"><button class="btn big" id="start">▶ NEW GAME</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
+ <h3>How it works</h3>
+ <p class="fine">Pick the team for each trip. Give mob tasks to people with good Admin and Reliability, field jobs to people with good Fieldcraft. When a check fails, they'll have an excuse and you choose what to do. Condition drops in the field and recovers in the office. Admin staff earn desk billables while the others are away.</p>`;
+ faces();$('#nav').innerHTML='';
+ $('#start').onclick=()=>{sfx.ring();START();seedInbox();S.screen='game';S.view='office';render()};
+ const c=$('#cont');if(c)c.onclick=()=>{try{S=JSON.parse(localStorage.getItem('fm96'))}catch(e){}render()};
+ $('#mute').onclick=e=>{muted=!muted;e.target.textContent='Sound: '+(muted?'OFF':'ON')};status('Insert disc.')}
+function seedInbox(){mail({from:'Colin',face:'colin',subj:'Welcome',body:"Your predecessor left a note. It says 'good luck' and 'don't let Marcus near the sat phone'. The season plan is on the Season screen."});
+ mail({from:'Fleet',face:'colin',subj:'Ute 3',body:'Ute 3 has "a new shape". Dazza says it was like that.'})}
 
-function seedInbox(){mail('Colin','Welcome',`Your predecessor left a note. It says "good luck" and "don't let Marcus near the sat phone". Season plan is on the Season screen.`);
- mail('Fleet','Ute 3',`Ute 3 has "a new shape". Dazza says it was like that.`)}
+// ---------- office ----------
+function office(){const t=nextTrip(),wk=S.week;
+ const watch=S.staff.filter(s=>s.contract<=8||s.morale<40||s.inj||s.cond<55).map(s=>`<p>· ${s.name}: ${[s.contract<=8&&!s.temp?`contract ends in ${s.contract} wk`:'',s.morale<40?'morale low':'',s.inj?`injured ${s.inj} wk`:'',s.cond<55?`condition ${s.cond}%`:''].filter(Boolean).join(', ')}</p>`).join('');
+ screen.innerHTML=`${hud()}<h2>Office — season ${S.season}, week ${Math.min(wk,SEASON_WEEKS)}</h2>
+ <div class="cols"><div>
+  <h3>This week</h3>
+  ${wk>SEASON_WEEKS?'<p>Season over. Board review is waiting.</p>':t&&t.wk<=wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week: ${t.days} days for ${CLIENTS[t.client]}, worth up to ${money(t.val)}. Hit Trip to pick the team.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}, ${t.days} days, needs ${t.need.field} field + ${t.need.admin} admin).</p>`:'<p>No trips left. Desk work until the season ends.</p>'}
+  ${S.promise&&!S.promise.gone?`<p class="claim">Promised ${CLIENTS[S.promise.client]} that ${staff(S.promise.id)?staff(S.promise.id).name:'someone'} goes on their next job.</p>`:''}
+  ${unread()?`<p>${unread()} unread in the inbox.</p>`:''}
+  <h3>Money</h3><p>Wages ${money(S.staff.reduce((a,s)=>a+s.wage,0))}/week. Desk billables this season ${money(S.desk)}.</p>
+  <h3>Watch list</h3>${watch||'<p class="fine">Nobody on the watch list.</p>'}
+ </div><div>
+  <h3>Recent</h3><div class="log" style="border:0;margin:0;padding:0;max-height:320px">${S.log.slice(-12).reverse().map(l=>`<div>${esc(l)}</div>`).join('')||'<div>Season started.</div>'}</div>
+ </div></div>`;status(t&&t.wk<=wk?'Trip week.':'Office.')}
 
-// ---------- trip: pick team ----------
-function pickTeam(t){S.screen='pick';S.pick=S.pick||[];save();
- const inField=S.pick.length;const need=t.need.field+t.need.admin;
- screen.innerHTML=`${hud()}<h2>Trip: ${esc(t.name)}</h2><p>${CLIENTS[t.client]} · ${t.days} days · needs ${t.need.field} field + ${t.need.admin} admin · worth ${money(t.val)}. Pick ${need}.</p>
- <div class="twrap"><table><tr><th></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Mor</th><th>Traits</th></tr>
- ${S.staff.map(s=>`<tr class="pick ${S.pick.includes(s.id)?'sel':''}" data-id="${s.id}"><td>${S.pick.includes(s.id)?'✔':'▢'}</td><td>${s.name}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${stat(s.morale,70,40)}</td><td class="fine">${s.traits.join(', ')}</td></tr>`).join('')}</table></div>
- <div class="row" style="margin-top:12px"><button class="btn big" id="go" ${inField===need?'':'disabled'}>▶ MOBILISE (${inField}/${need})</button>${inField>0&&inField<need?`<button class="btn" id="short">Go short-handed (${inField}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button><button class="btn" id="back">Back to office</button></div>
- <p class="fine" style="margin-top:8px">Short-handed: data and safety suffer. Cancel: no revenue, client relationship and board take a hit.</p>`;
- screen.querySelectorAll('[data-id]').forEach(r=>r.onclick=()=>{sfx.click();const id=r.dataset.id;if(S.pick.includes(id))S.pick=S.pick.filter(x=>x!==id);else if(S.pick.length<need)S.pick.push(id);pickTeam(t)});
- $('#go').onclick=()=>{sfx.ring();runTrip(t,S.pick.map(id=>S.staff.find(s=>s.id===id)));S.pick=[]};
- const sh=$('#short');if(sh)sh.onclick=()=>{sfx.meh();t.short=need-S.pick.length;runTrip(t,S.pick.map(id=>S.staff.find(s=>s.id===id)));S.pick=[]};
- $('#cancel').onclick=()=>{sfx.bad();S.clientRep[t.client]=clamp(S.clientRep[t.client]-20);S.board=clamp(S.board-8);t.result={stars:0,data:0,rec:0,cost:0,log:['Trip cancelled. Could not staff it.'],team:[]};S.log.push(`${t.name} cancelled. ${CLIENTS[t.client]} not impressed.`);mail(CLIENTS[t.client],'Cancellation',`We had a helicopter booked. We will be invoicing for the helicopter.`);S.pick=[];S.week++;S.view='office';render()};
- $('#back').onclick=()=>{S.view='office';render()};status('Pick the team.')}
+// ---------- squad ----------
+function squad(){const sel=UI.sel;
+ screen.innerHTML=`${hud()}<h2>Squad — ${S.staff.length}</h2><div class="twrap"><table><tr><th></th><th>Name</th><th>Role</th><th>Age</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th>Wage</th><th>Ctr</th></tr>
+ ${S.staff.map(s=>`<tr class="pick ${sel===s.id?'sel':''}" data-id="${s.id}"><td>${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}${S.busy.includes(s.id)?' <span class="inj" style="color:var(--sky)">CAMP</span>':''}</td><td class="fine">${s.role}</td><td>${s.age}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td>${money(s.wage)}</td><td>${s.temp?'temp':s.contract}</td></tr>`).join('')}</table></div>
+ <div id="detail"></div>`;
+ screen.querySelectorAll('[data-id]').forEach(r=>r.onclick=()=>{sfx.click();UI.sel=r.dataset.id;squad();faces()});
+ const s=staff(sel);if(s){$('#detail').innerHTML=`<h3>${s.name} · ${s.role} · ${s.apps} trip${s.apps===1?'':'s'}${s.recs?`, ${s.recs} recordable${s.recs===1?'':'s'}`:''}</h3>
+  <div>${s.traits.map(t=>`<p><span class="tag">${t}</span> <span class="fine">${TRAIT_INFO[t]||''}</span></p>`).join('')}</div>
+  ${s.temp?'':`<div class="row" style="margin-top:6px"><button class="btn sm" id="renew" ${s.contract>26?'disabled':''}>Offer new contract (+52 wk, +8% wage)</button><button class="btn sm" id="fire">Let go (4 wk payout)</button></div>${s.contract>26?'<p class="fine">Contract talks open inside 26 weeks.</p>':''}`}`;
+  const rn=$('#renew');if(rn)rn.onclick=()=>{sfx.good();s.contract+=52;s.wage=Math.round(s.wage*1.08/10)*10;bumpStat(s,'morale',10);log(`${s.name} re-signed for a year.`);render()};
+  const fr=$('#fire');if(fr)fr.onclick=()=>{sfx.bad();S.cash-=s.wage*4;removeStaff(s.id,'let go.');S.staff.forEach(x=>bumpStat(x,'morale',-6));UI.sel=null;render()}}
+ status('Squad.')}
 
-// ---------- trip: resolve ----------
-// TODO [1]: replace with the interactive engine. Contract: takes (trip, team[]),
-// must set trip.result={stars,data,rec,cost,log[]}, adjust S.cash/S.revenue/S.recordables/S.clientRep/morale, then call tripResult(trip).
-function runTrip(t,team){const log=[];const r=()=>Math.random();const short=t.short||0;delete t.short;if(short)log.push(`Went ${short} short. Everyone doing two jobs.`);
- const fld=team.reduce((a,s)=>a+s.field,0)/team.length,adm=team.reduce((a,s)=>a+s.admin,0)/team.length,rel=team.reduce((a,s)=>a+s.rel,0)/team.length,fit=team.reduce((a,s)=>a+s.fit,0)/team.length,mor=team.reduce((a,s)=>a+s.morale,0)/team.length;
- let data=0,rec=0,cost=t.days*team.length*350;
- // mob: admin + reliability
- const mobScore=(adm*2+rel*3)/5;const mobOK=mobScore/20+r()*.3;
- const missed=[];['medicals','sat phone','PPE','inductions'].forEach(k=>{if(r()>mobOK+.35)missed.push(k)});
- log.push(`Mob: ${missed.length?'flew without '+missed.join(', '):'everything done'}. (${Math.round(mobScore)}/20)`);
- // excuse flavour by trait
- team.forEach(s=>{if(s.traits.includes('unreachable')&&r()<.6)log.push(`${s.name} did not answer the phone for two days.`);if(s.traits.includes('loses-things')&&r()<.5){log.push(`${s.name} lost the sat phone. Freighted a replacement.`);cost+=190}if(s.traits.includes('over-prepares')&&r()<.5)log.push(`${s.name} packed three first-aid kits and a laminator.`);if(s.traits.includes('snake-magnet')&&r()<.4)log.push(`${s.name} picked up something he shouldn't have.`)});
- // field days
- for(let d=1;d<=t.days;d++){const dayScore=(fld*3+rel*2+fit)/6/20+(mor-50)/200-short*.15;const ok=r()<dayScore;data+=ok?100/t.days:50/t.days;
-  if(!ok)log.push(`Day ${d}: half a day's data. Excuses were had.`);
-  const incP=.12+missed.length*.08-(fit-10)/100+short*.1;if(r()<incP){const bad=r()<.5;rec+=bad?1:0;cost+=bad?800:200;log.push(`Day ${d}: incident${bad?' (recordable)':' (near miss)'}${missed.length?' — would have helped to have '+missed[0]:''}.`)}}
- data=Math.round(clamp(data));
- // fatigue / morale
- team.forEach(s=>{s.fit=Math.max(1,s.fit-(t.days>6?1:0));s.morale=clamp(s.morale+(rec?-8:+4))});
- let stars=0;stars+=data>=90?2:data>=70?1:0;stars+=rec===0?2:rec===1?1:0;stars+=missed.length===0?1:0;
- const rep=(stars-2.5)*8;S.clientRep[t.client]=clamp(S.clientRep[t.client]+rep);
- S.revenue+=t.val;S.cash+=t.val-cost;S.recordables+=rec;S.board=clamp(S.board+(stars-2.5)*4-(rec*3));
- t.result={stars,data,rec,cost,log,team:team.map(s=>s.name)};S.log.push(`${t.name}: ${stars}★, data ${data}%, ${rec} recordable${rec===1?'':'s'}.`);
- if(rec>=2)mail('Colin','We need to talk about '+t.name,`Two recordables on one trip. The client has rung. I have rung. Ring me.`);
- tripResult(t)}
+// ---------- season ----------
+function season(){
+ screen.innerHTML=`${hud()}<h2>Season ${S.season} — ${S.trips.length} trips</h2><div class="twrap"><table><tr><th>Wk</th><th>Client</th><th>Trip</th><th>Days</th><th>Needs</th><th>Worth</th><th>Result</th></tr>
+ ${S.trips.map(t=>`<tr class="${t.result?'out':''} ${t.wk<=S.week&&!t.result?'sel':''}"><td>${t.wk}</td><td class="fine">${CLIENTS[t.client]}</td><td>${esc(t.name)}</td><td>${t.days}</td><td class="fine">${t.need.field}F ${t.need.admin}A</td><td>${money(t.val)}</td><td>${t.result?(t.result.cancelled?'cancelled':`${'★'.repeat(t.result.stars)}${t.result.rec?' · '+t.result.rec+' rec':''}`):t.wk<=S.week?'<b>NOW</b>':'—'}</td></tr>`).join('')}</table></div>
+ <h3>Client relations</h3><div class="hud">${Object.entries(S.clientRep).map(([k,v])=>`<div><b>${CLIENTS[k]}</b>${Math.round(v)}%${bar(v)}</div>`).join('')}</div>
+ <p class="fine">The board count a client as happy at 50% or more.</p>`;status('Fixtures.')}
 
-function tripResult(t){S.screen='result';S.week++;save();const r=t.result;(r.stars>=4?sfx.good:r.stars<=1?sfx.bad:sfx.meh)();
- screen.innerHTML=`${hud()}<h1 style="font-size:14px">${r.stars>=4?'GOOD TRIP':r.stars>=2?'A TRIP HAPPENED':'NEVER AGAIN'}</h1><h2>${esc(t.name)} · ${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</h2>
- <p>Team: ${r.team.join(', ')}. Data ${r.data}% · ${r.rec} recordable${r.rec===1?'':'s'} · cost ${money(r.cost)} against ${money(t.val)} · ${CLIENTS[t.client]} now ${S.clientRep[t.client]}%.</p>
- <div class="log">${r.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
- <div class="row" style="margin-top:12px"><button class="btn big" id="ok">▶ BACK TO THE OFFICE</button></div>`;
- $('#ok').onclick=()=>{sfx.click();S.view='office';weeklyEvent();render()};status('Trip report.');nav()}
+// ---------- inbox ----------
+function inbox(){
+ screen.innerHTML=`${hud()}<h2>Inbox</h2>${S.inbox.length?S.inbox.map((m,i)=>`<div class="mail ${m.read?'':'unread'}"><div class="row">${cv(m.face||'colin')}<div style="min-width:0;flex:1"><div class="from">${esc(m.from)} · S${S.season} wk ${m.wk}</div><b>${esc(m.subj)}</b><div>${esc(m.body)}</div></div></div>${m.opts&&!m.done?`<div class="row" style="margin-top:6px">${m.opts.map((o,j)=>`<button class="btn sm" data-i="${i}" data-j="${j}">${esc(o.l)}</button>`).join('')}</div>`:m.done?`<div class="fine" style="margin-top:4px">→ ${esc(m.done)}</div>`:''}</div>`).join(''):'<p class="fine">Nothing. Suspicious.</p>'}`;
+ S.inbox.forEach(m=>m.read=true);nav();
+ screen.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{sfx.click();answerMail(+b.dataset.i,+b.dataset.j);render()});
+ status('Inbox.')}
 
-function endSeason(){S.screen='end';save();const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
- const pass=S.revenue>=BOARD0.revenue&&S.recordables<=BOARD0.safety&&happy>=BOARD0.clients;
- const title=pass?(S.board>=75?'MANAGER OF THE YEAR':'CONTRACT EXTENDED'):(S.board>=45?'ONE MORE SEASON. PROBATION.':'SACKED');
- screen.innerHTML=`${hud()}<h1>${title}</h1>
- <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin</div></div><div class="bub">${pass?'Targets met. The board is pleased, which means they have already raised next year\'s.':'Targets missed. '+(S.recordables>BOARD0.safety?'The safety number did it. ':'')+(S.revenue<BOARD0.revenue?'Revenue was short. ':'')+(happy<BOARD0.clients?'Clients stopped ringing back. ':'')}<br><br>${S.staff.find(s=>s.id==='rusty')?'Rusty says it used to be worse.':'Rusty has gone to the competitor. He took the goanna story with him.'}</div></div>
- <div class="log">${S.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
- <div class="row" style="margin-top:12px"><button class="btn big" id="again">▶ NEW SEASON</button></div>`;
- portrait($('#hostcv'),'colin');$('#nav').innerHTML='';(pass?sfx.good:sfx.bad)();
- $('#again').onclick=()=>{S=START();seedInbox();S.view='office';render()};status('Season over.')}
+// ---------- training ----------
+function train(){const tw=nextTrip()&&nextTrip().wk<=S.week;
+ screen.innerHTML=`${hud()}<h2>Training</h2>
+ <h3>This week's sessions</h3><p class="fine">+1 to a stat for $500 and a little condition. Over-50s top out at 16. Reliability sticks about half the time.</p>
+ <div class="twrap"><table><tr><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Plan</th></tr>
+ ${S.staff.map(s=>`<tr class="${avail(s)?'':'out'}"><td>${s.name}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>
+  <select id="tr-${s.id}" ${avail(s)?'':'disabled'}><option value="">—</option><option value="field">Fieldcraft</option><option value="admin">Admin / forms</option><option value="rel">Reliability</option><option value="fit">Fitness</option></select></td></tr>`).join('')}</table></div>
+ <h3>Camps</h3><p class="fine">Run now. Attendees are out for the week. Not in a trip week.</p>
+ ${CAMPS.map(c=>{const ready=campReady(c);return `<div class="mail"><b>${c.n}</b> · ${money(c.cost)}<div class="fine">${c.d}</div>
+  ${c.pick?`<div class="row" style="margin-top:4px">${S.staff.filter(avail).map(s=>`<label class="fine"><input type="checkbox" id="cp-${c.id}-${s.id}" data-c="${c.id}" data-s="${s.id}" ${UI.camp[c.id]&&UI.camp[c.id].includes(s.id)?'checked':''}> ${s.name}</label>`).join('')}</div>`:''}
+  <div class="row" style="margin-top:6px"><button class="btn sm" data-camp="${c.id}" ${ready?'':'disabled'}>Run it${c.pick?` (pick ${c.pick})`:''}</button>${ready?'':`<span class="fine">${tw?'Trip week.':'Recently run.'}</span>`}</div></div>`}).join('')}`;
+ S.staff.forEach(s=>{const el=$('#tr-'+s.id);if(!el)return;el.value=S.training[s.id]||'';el.onchange=()=>{S.training[s.id]=el.value;save()}});
+ screen.querySelectorAll('input[data-c]').forEach(b=>b.onchange=()=>{const c=b.dataset.c;UI.camp[c]=UI.camp[c]||[];if(b.checked)UI.camp[c].push(b.dataset.s);else UI.camp[c]=UI.camp[c].filter(x=>x!==b.dataset.s)});
+ screen.querySelectorAll('[data-camp]').forEach(b=>b.onclick=()=>{const c=CAMPS.find(x=>x.id===b.dataset.camp);const ids=UI.camp[c.id]||[];if(c.pick&&ids.length<1)return status('Tick who is going first.');
+  const out=runCamp(c.id,ids);UI.camp[c.id]=[];if(out){sfx.good();mail({from:'Training',face:'colin',subj:c.n,body:out})}render()});
+ status('Training.')}
+
+// ---------- recruitment ----------
+function recruit(){
+ screen.innerHTML=`${hud()}<h2>Recruitment</h2><p class="fine">CV stats marked * are what they claim. Interviews and reference calls use your attention: ${S.att} left this week. Hiring costs two weeks' wages up front.</p>
+ ${S.market.map(a=>{const k=a.known;const f=(key,label)=>k[key]?stat(a[key]):`<span class="claim">${a.cv[key]}*</span>`;
+  const rel=k.rel?stat(a.rel):k.relRange?`<span class="claim">${a.relRange[0]}–${a.relRange[1]}</span>`:`<span class="claim">${a.cv.rel}*</span>`;
+  return `<div class="mail"><div class="row">${scv(a)}<div style="min-width:0;flex:1"><b>${a.name}</b> · ${a.role} · ${a.age}<div class="fine">${esc(a.cvText)}</div></div></div>
+  <div class="fine" style="margin-top:4px">Fld ${f('field')} · Adm ${f('admin')} · Rel ${rel} · Fit ${k.fit?stat(a.fit):'??'} · ${money(a.wage)}/wk${k.trait?` · <span class="tag">${a.traits[0]}</span>`:''}${k.dodgy?' · <span style="color:var(--red)">dodgy reference</span>':''}</div>
+  ${a.qa.map(x=>`<div class="qa"><b>${esc(x.q)}</b><br>${esc(x.a)}</div>`).join('')}
+  <div class="row" style="margin-top:6px">${IQ.map(q=>`<button class="btn sm" data-iq="${a.id}" data-k="${q.k}" ${S.att<=0||(q.k==='trait'?k.trait:q.k==='rel'?k.relRange:k[q.k])?'disabled':''}>${esc(q.s)}</button>`).join('')}
+  <button class="btn sm" data-ref="${a.id}" ${S.att<=0||k.ref?'disabled':''}>Ring referee</button><button class="btn sm" data-hire="${a.id}"><b>Hire</b></button></div></div>`}).join('')||'<p class="fine">Nobody on the market. New CVs arrive every four weeks.</p>'}`;
+ screen.querySelectorAll('[data-iq]').forEach(b=>b.onclick=()=>{sfx.click();interview(b.dataset.iq,b.dataset.k);render()});
+ screen.querySelectorAll('[data-ref]').forEach(b=>b.onclick=()=>{sfx.ring();reference(b.dataset.ref);render()});
+ screen.querySelectorAll('[data-hire]').forEach(b=>b.onclick=()=>{sfx.good();hire(b.dataset.hire);S.view='squad';render()});
+ status('Recruit.')}
+
+// ---------- board ----------
+function board(){const done=S.trips.filter(t=>t.result).length;const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
+ const mood=S.board>=70?'Carry on.':S.board>=45?'The board has "questions".':S.board>=25?'The board has started using your full name.':'The board has a name in mind. It is not yours.';
+ screen.innerHTML=`${hud()}<h2>Board — Colin's view</h2>
+ ${talk('colin','Colin',`${done} of ${S.trips.length} trips done. Revenue ${money(S.revenue)} against ${money(S.target.rev)}. ${S.recordables} recordable${S.recordables===1?'':'s'}, limit ${S.target.safety}. ${happy} client${happy===1?'':'s'} still taking our calls. Cash ${money(S.cash)}.<br><br>${mood}`)}
+ <h3>Targets</h3><div class="hud">
+  <div><b>Revenue</b>${Math.round(S.revenue/S.target.rev*100)}%${bar(0,S.revenue/S.target.rev*100)}</div>
+  <div><b>Safety</b>${S.recordables<=S.target.safety?'On track':'<span style="color:var(--red)">Over</span>'}</div>
+  <div><b>Clients</b>${happy} / ${S.target.clients}</div>
+  <div><b>Cash</b>${S.cash>=0?'Positive':'<span style="color:var(--red)">Negative</span>'}</div></div>
+ <p class="fine">Board confidence follows revenue against pace, safety, client relations, cash and morale. Below 18% after week 10, you're gone.</p>
+ ${S.week>SEASON_WEEKS?`<div class="row" style="margin-top:14px"><button class="btn big" id="endseason">▶ SEASON REVIEW</button></div>`:''}`;
+ const e=$('#endseason');if(e)e.onclick=()=>{sfx.click();S.screen='end';render()};status('Board.')}
+
+// ---------- pick team ----------
+function pickTeam(){const t=nextTrip();if(!t){S.screen='game';return render()}const need=t.need.field+t.need.admin,n=S.pick.length;
+ screen.innerHTML=`${hud()}<h2>Trip: ${esc(t.name)}</h2><p>${CLIENTS[t.client]} · ${t.days} days · hazard ${'▲'.repeat(t.hazard)||'low'} · needs ${t.need.field} field + ${t.need.admin} admin · worth up to ${money(t.val)}.</p>
+ ${S.promise&&!S.promise.gone&&S.promise.client===t.client?`<p class="claim">You promised ${CLIENTS[t.client]} ${staff(S.promise.id)?staff(S.promise.id).name:'someone'}.</p>`:''}
+ <div class="twrap"><table><tr><th></th><th></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th>Traits</th></tr>
+ ${S.staff.map(s=>{const ok=avail(s);return `<tr class="${ok?'pick':'out'} ${S.pick.includes(s.id)?'sel':''}" data-id="${ok?s.id:''}"><td>${S.pick.includes(s.id)?'✔':ok?'▢':'✘'}</td><td>${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td class="fine">${s.traits.join(', ')}</td></tr>`}).join('')}</table></div>
+ <div class="tbar"><button class="btn big" id="go" ${n===need?'':'disabled'}>▶ MOBILISE (${n}/${need})</button>${n>0&&n<need?`<button class="btn" id="short">Go short-handed (${n}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button></div>
+ <p class="fine" style="margin-top:8px">Short-handed: field checks get harder and incidents likelier. Cancelling: no revenue, and the client and board both take it badly.</p>`;faces();
+ screen.querySelectorAll('tr[data-id]').forEach(r=>{if(!r.dataset.id)return;r.onclick=()=>{sfx.click();const id=r.dataset.id;if(S.pick.includes(id))S.pick=S.pick.filter(x=>x!==id);else if(S.pick.length<need)S.pick.push(id);render()}});
+ const go=()=>{sfx.ring();startTrip(t,S.pick);UI.task=UI.job=null;render()};
+ $('#go').onclick=go;const sh=$('#short');if(sh)sh.onclick=go;
+ $('#cancel').onclick=()=>{sfx.bad();S.clientRep[t.client]=clamp(S.clientRep[t.client]-20);S.board=clamp(S.board-8);t.result={stars:0,data:0,rec:0,cost:0,pay:0,missed:[],team:[],cancelled:true};
+  log(`${t.name} cancelled. ${CLIENTS[t.client]} not impressed.`);mail({from:CLIENTS[t.client],face:'client',subj:'Cancellation',body:'We had a helicopter booked. We will be invoicing for the helicopter.'});S.cash-=2500;S.pick=[];S.screen='game';weekTick();S.view='office';render()};
+ status('Pick the team.')}
+
+// ---------- trip ----------
+function tripHead(){const T=S.trip,t=tripById(T.id);const done=Object.keys(T.done).length;
+ const cells=T.phase==='mob'?`<div><b>Mob days left</b>${T.mobDays}</div><div><b>Tasks done</b>${done} / ${MOB_TASKS.length}</div>`:`<div><b>Field day</b>${Math.min(T.day,t.days)} / ${t.days}</div><div><b>Data</b>${Math.round(clamp(T.data))}%${bar(0,T.data)}</div><div><b>Recordables</b>${T.rec}</div>`;
+ return `<div class="hud">${cells}<div><b>Trip cost</b>${money(T.cost)}</div><div><b>Worth</b>${money(t.val)}</div></div><h2>${esc(t.name)} · ${CLIENTS[t.client]}</h2>`}
+function evPanel(){const T=S.trip,ev=T.ev,e=evData(ev),cx=evCtx(ev);
+ const who=ev.kind==='inc'?`<canvas data-face="radio"></canvas><div class="who">UHF 40<br>Day ${T.day}</div>`:`<canvas data-face="s:${ev.who}"></canvas><div class="who">${esc(cx.p.name)}<br>${esc(cx.p.role||'')}</div>`;
+ const head=ev.kind==='inc'?`<h2 style="color:var(--red)">INCIDENT — day ${T.day}, late arvo</h2>`:ev.kind==='mob'?`<h2>${MOB_TASKS.find(m=>m.id===ev.task).n} → ${esc(cx.p.name)}</h2>`:`<h2>${esc(T.jobs[T.day-1][ev.job])} → ${esc(cx.p.name)}</h2>`;
+ const txt=s=>esc(tpl(s,{p:cx.p,o:cx.o,b:cx.b}));
+ let foot;if(ev.res==null)foot=`<div class="opts">${e.o.map((o,i)=>`<button class="btn" data-o="${i}">${i+1}. ${txt(o.l)}</button>`).join('')}</div>`;
+ else{const o=e.o[ev.res];const good=ev.kind==='inc'?!(o.inc&&!ev.fa)&&(o.m||0)>=0:o.done&&(o.m||0)>=0;const bad=ev.kind==='inc'?(o.inc&&!ev.fa):!o.done;
+  const fx=[o.d?`+${o.d} day${o.d>1?'s':''}`:'',o.c?money(o.c):'',o.data?`data ${o.data>0?'+':''}${o.data}`:'',o.m?`morale ${o.m>0?'+':''}${o.m}`:'',o.inc?(ev.fa?'first aid only':'RECORDABLE'):'',o.inj?`injured ${o.inj} wk`:''].filter(Boolean).join(' · ');
+  foot=`<div class="res ${bad?'bad':good?'good':''}">${txt(o.r)}${ev.fa?' First aid training kicked in: not recordable.':''}${fx?`<div class="fine" style="margin-top:6px">${fx}</div>`:''}</div><div class="tbar"><button class="btn" id="evnext">Next ▶</button></div>`}
+ return `${head}<div class="talk"><div>${who}</div><div class="bub">${txt(e.t)}</div></div>${foot}`}
+function bindEv(){screen.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const T=S.trip;resolveEv(+b.dataset.o);const ev=T.ev;const o=evData(ev).o[ev.res];
+  (ev.kind==='inc'?(o.inc&&!ev.fa?sfx.bad:sfx.meh):(o.done?sfx.good:sfx.bad))();render()});
+ const n=$('#evnext');if(n)n.onclick=()=>{sfx.click();closeEv();UI.task=UI.job=null;render()}}
+function tripView(){const T=S.trip;if(!T){S.screen='game';return render()}const t=tripById(T.id);
+ if(T.phase==='result')return resultView();if(T.phase==='debrief')return debriefView();
+ let body='';
+ if(T.ev){body=evPanel()}
+ else if(T.phase==='mob'){
+  if(UI.task){const task=MOB_TASKS.find(m=>m.id===UI.task);
+   body=`<h3>${task.n}: who's doing it?</h3><p class="fine">Admin and Reliability matter here. Anyone in the office can take a mob task.</p><div class="crew">${S.staff.filter(s=>avail(s)&&!s.temp).map(s=>{const n=Object.values(T.done).filter(x=>x===s.id).length;return `<button class="btn card" data-s="${s.id}">${scv(s)}<span>${s.name}${T.team.includes(s.id)?' ★':''}</span><span class="fine">Adm ${s.admin} · Rel ${s.rel}</span>${n?`<span class="fine">${n} task${n>1?'s':''} done</span>`:''}</button>`}).join('')}</div><div class="tbar"><button class="btn" id="back">◀ Back</button></div>`}
+  else{const open=MOB_TASKS.filter(m=>!T.done[m.id]);
+   body=`${T.last&&T.last.clean?`<div class="res good">${esc(T.last.t)}</div>`:''}<h3>Mobilisation: ${T.mobDays} day${T.mobDays===1?'':'s'} before the plane</h3>
+   <div class="tasks">${MOB_TASKS.map(m=>{const d=T.done[m.id];return `<button class="btn ${d?'done':''}" data-t="${m.id}" ${d||T.mobDays<=0?'disabled':''}>${d?'✔ ':'▢ '}${m.n}<br><span class="fine">${d?esc(staff(d)?staff(d).name:'done'):money(m.c)}</span></button>`}).join('')}</div>
+   <div class="tbar">${open.length&&T.mobDays>0?'<button class="btn" id="delegate">Delegate the rest</button>':''}<button class="btn big" id="fly">▶ ${open.length?(T.mobDays>0?'FLY NOW':'OUT OF TIME. FLY.'):'FLY'}</button></div>
+   ${open.length?`<p class="fine">Skipping a task can come back to bite on site.</p>`:''}`}}
+ else if(T.phase==='field'){const jobs=T.jobs[T.day-1]||[];
+  if(UI.job!=null){body=`<h3>Day ${T.day}: ${esc(jobs[UI.job])}. Who's on it?</h3><div class="crew">${team().map(s=>{const ok=canWork(s);return `<button class="btn card" data-s="${s.id}" ${ok?'':'disabled'}>${scv(s)}<span>${s.name}</span><span class="fine">Fld ${s.field} · Rel ${s.rel}</span>${cbar(s.cond)}${s.inj?'<span class="inj">INJURED</span>':!ok?'<span class="fine">done a job today</span>':''}</button>`}).join('')}</div><div class="tbar"><button class="btn" id="back">◀ Back</button></div>`}
+  else{const allDone=!dayJobsOpen().length;
+   body=`${T.last&&T.last.clean?`<div class="res good">${esc(T.last.t)}</div>`:''}<h3>Day ${T.day} of ${t.days}</h3>
+   <div class="tasks">${jobs.map((n,j)=>{const st=T.jobSt[T.day+':'+j];return `<button class="btn ${st==='x'?'skip':st?'done':''}" data-j="${j}" ${st!=null?'disabled':''}>${st==='x'?'✘ ':st?'✔ ':'▢ '}${esc(n)}<br><span class="fine">${st&&st!=='x'?esc(staff(st)?staff(st).name:''):st==='x'?'not done':Math.round(jobVal())+'% of data'}</span></button>`}).join('')}</div>
+   <div class="tbar">${allDone?'<button class="btn big" id="endday">▶ END OF DAY</button>':'<button class="btn" id="autoday">Let them get on with today</button>'}<button class="btn" id="autoall">Let them get on with the rest</button></div>
+   <div class="log">${T.log.slice(-5).map(l=>`<div>${esc(l)}</div>`).join('')}</div>`}}
+ screen.innerHTML=tripHead()+body;faces();
+ if(T.ev)return bindEv();
+ const bk=$('#back');if(bk)bk.onclick=()=>{UI.task=UI.job=null;render()};
+ screen.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{sfx.click();T.last=null;UI.task=b.dataset.t;render()});
+ screen.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{sfx.click();T.last=null;UI.job=+b.dataset.j;render()});
+ screen.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{if(T.phase==='mob'){mobAssign(UI.task,b.dataset.s);UI.task=null}else{fieldAssign(UI.job,b.dataset.s);UI.job=null}
+  if(T.ev)sfx.ring();else sfx.good();render()});
+ const dl=$('#delegate');if(dl)dl.onclick=()=>{sfx.meh();autoMob();render()};
+ const fl=$('#fly');if(fl)fl.onclick=()=>{sfx.good();fly();render()};
+ const ed=$('#endday');if(ed)ed.onclick=()=>{sfx.click();endDay();if(S.trip.ev)sfx.bad();render()};
+ const ad=$('#autoday');if(ad)ad.onclick=()=>{sfx.meh();autoDay();render()};
+ const aa=$('#autoall');if(aa)aa.onclick=()=>{sfx.meh();let g=0;while(S.trip.phase==='field'&&g++<30)autoDay();render()};
+ status(T.phase==='mob'?'Mobilising.':`Field day ${T.day}.`)}
+function resultView(){const T=S.trip,t=tripById(T.id),r=t.result;const hd=r.stars>=4?'GOOD TRIP':r.stars>=2?'A TRIP HAPPENED':'NEVER AGAIN';
+ screen.innerHTML=`${hud()}<h1 style="font-size:14px">${hd}</h1><h2>${esc(t.name)} · ${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</h2>
+ <div class="hud"><div><b>Data</b>${r.data}%${bar(0,r.data)}</div><div><b>Recordables</b>${r.rec}</div><div><b>Paid</b>${money(r.pay)}<div class="fine">of ${money(t.val)}</div></div><div><b>Trip cost</b>${money(r.cost)}</div><div><b>${CLIENTS[t.client]}</b>${Math.round(S.clientRep[t.client])}%</div></div>
+ <p>Team: ${r.team.join(', ')}.${r.missed.length?` Flew without ${r.missed.join(', ').toLowerCase()}.`:''}</p>
+ <div class="log">${T.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+ <div class="tbar"><button class="btn big" id="deb">▶ CLIENT DEBRIEF</button></div>`;
+ (r.stars>=4?sfx.good:r.stars<=1?sfx.bad:sfx.meh)();
+ $('#deb').onclick=()=>{sfx.click();debriefPick();render()};status('Trip report.')}
+function debriefView(){const T=S.trip,t=tripById(T.id),r=t.result,d=DEBRIEF[T.deb];const best=staff(r.best);
+ const x={best:best?best.name:'the team',miss:r.missed.join(', ').toLowerCase()||'a few things'};
+ let foot;if(T.debRes==null)foot=`<div class="opts">${d.a.map((a,i)=>`<button class="btn" data-a="${i}">${i+1}. ${esc(tpl(a.l,x))}</button>`).join('')}</div>`;
+ else{const a=d.a[T.debRes];foot=`<div class="res">${esc(tpl(a.r,x))} ${esc(T.debOut||'')}</div><div class="tbar"><button class="btn big" id="done">▶ BACK TO THE OFFICE</button></div>`}
+ screen.innerHTML=`${hud()}<h2>Debrief with ${CLIENTS[t.client]}</h2>${talk('client',CLIENTS[t.client],esc(tpl(d.q,x)))}${foot}`;faces();
+ screen.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{sfx.click();debriefAnswer(+b.dataset.a);render()});
+ const dn=$('#done');if(dn)dn.onclick=()=>{sfx.click();endTrip();if(S.board<18&&S.week>10){S.screen='end';S.midSack=true}render()};status('Debrief.')}
+
+// ---------- season end ----------
+function endView(){$('#nav').innerHTML='';
+ if(S.midSack){S.over=true;save();screen.innerHTML=`<h1>SACKED</h1><h2>Week ${S.week}, season ${S.season}</h2>${talk('colin','Colin',`The board met this morning. Confidence was ${S.board}%. They've asked me to thank you for your service. Security will walk you to the car park. Marcus is in the car park, oddly.`)}
+  <div class="log">${S.log.slice(-15).map(l=>`<div>${esc(l)}</div>`).join('')}</div><div class="tbar"><button class="btn big" id="again">▶ NEW GAME</button></div>`;faces();sfx.bad();
+  $('#again').onclick=()=>{START();seedInbox();S.screen='game';render()};return status('Sacked.')}
+ const v=seasonVerdict();
+ const why=[v.revOK?'Revenue: met.':`Revenue: ${money(S.revenue)} of ${money(S.target.rev)}.`,v.safeOK?'Safety: met.':`Safety: ${S.recordables} recordables, limit ${S.target.safety}.`,v.cliOK?'Clients: met.':`Clients: ${v.happy} happy, needed ${S.target.clients}.`,S.cash<-20000?`Cash: ${money(S.cash)}. The bank rang.`:''].filter(Boolean).join('<br>');
+ const rusty=staff('rusty');
+ screen.innerHTML=`${hud()}<h1>${v.title}</h1>${talk('colin','Colin',`${why}<br><br>${v.sacked?'The board has made its decision.':v.pass?"Targets met. Which means they've already raised next year's.":"You're on probation. One more season to turn it round."}${rusty?' Rusty says it used to be worse.':''}`)}
+ <h3>Season log</h3><div class="log">${S.log.slice(-20).map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+ <div class="tbar">${v.sacked?'<button class="btn big" id="again">▶ NEW GAME</button>':testimonialDue()&&!S.testSeen?'<button class="btn big" id="test">▶ RUSTY WANTS A WORD</button>':`<button class="btn big" id="next">▶ START SEASON ${S.season+1}</button>`}</div>`;faces();
+ (v.pass?sfx.good:sfx.bad)();
+ const a=$('#again');if(a)a.onclick=()=>{S.over=true;START();seedInbox();S.screen='game';render()};
+ const tb=$('#test');if(tb)tb.onclick=()=>{S.screen='testimonial';render()};
+ const nx=$('#next');if(nx)nx.onclick=()=>{sfx.ring();newSeason();S.testSeen=false;S.screen='game';S.view='office';render()};
+ if(v.sacked){S.over=true;save()}status('Season over.')}
+function testimonialView(){const r=staff('rusty');$('#nav').innerHTML='';
+ const opts=[S.rustyOneMore>=2?null:'One more season, then.','Send-off at the depot ($1,500)','Name trap line 3 after him'];
+ screen.innerHTML=`<h1>RUSTY'S TESTIMONIAL</h1><h2>${r.age} years old · ${r.apps} trips with you</h2>
+ ${talk('rusty','Rusty',`I've been thinking. Knees are gone. The sites have all got gates now. There's an app for the gates.<br><br>${S.rustyOneMore?"I know I said this last year.":"I reckon this might be it."} What do you reckon?`)}
+ <div class="opts">${opts.map((o,i)=>o?`<button class="btn" data-r="${i}">${i+1}. ${o}</button>`:'<button class="btn" disabled>1. He won\'t hear of another season.</button>').join('')}</div><div id="tres"></div>`;faces();
+ screen.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{const out=testimonial(+b.dataset.r);S.testSeen=true;sfx.good();
+  screen.querySelector('.opts').innerHTML='';$('#tres').innerHTML=`<div class="res good">${esc(out)}</div><div class="tbar"><button class="btn big" id="next">▶ START SEASON ${S.season+1}</button></div>`;
+  $('#next').onclick=()=>{sfx.ring();newSeason();S.testSeen=false;S.screen='game';S.view='office';render()}});
+ status('Testimonial.')}
 
 // ---------- boot ----------
 function boot(){S=null;title()}
 if(window.claude?.hot?.snapshot)window.claude.hot.snapshot(()=>S);
-window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;S.screen==='pick'?pickTeam(nextTrip()):render()}else boot()}):boot();
+window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;render()}else boot()}):boot();
 </script>
 
 </body>
