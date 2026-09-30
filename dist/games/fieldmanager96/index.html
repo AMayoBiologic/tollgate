@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Field Manager '96</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+[hidden]{display:none!important}
+
+/* Layout: Win95 MDI window. Left nav rail, main panel, status bar. Single deliberate 1996 look. */
+:root{
+  --desk:#008080; --win:#c0c0c0; --win-dark:#808080; --win-light:#ffffff; --win-black:#000000;
+  --title:#000080; --title-fg:#ffffff;
+  --screen:#1a1420; --screen-fg:#f2e9c9; --amber:#ffb000; --lime:#7fff2a; --red:#ff3c3c; --sky:#4fb7ff; --dim:rgba(242,233,201,.55);
+  --font-head:'Press Start 2P',monospace; --font-body:'VT323',monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{margin:0;background:var(--desk);color:var(--win-black);font-family:var(--font-body);font-size:21px;line-height:1.15;padding-block:12px;padding-inline:16px;box-sizing:border-box;
+  background-image:linear-gradient(90deg,rgba(0,0,0,.08) 1px,transparent 1px),linear-gradient(rgba(0,0,0,.08) 1px,transparent 1px);background-size:4px 4px}
+*{box-sizing:border-box}
+.win{max-width:860px;margin:0 auto;background:var(--win);border:2px solid;border-color:var(--win-light) var(--win-black) var(--win-black) var(--win-light);box-shadow:inset 1px 1px 0 var(--win),inset -1px -1px 0 var(--win-dark),6px 6px 0 rgba(0,0,0,.35);padding:3px}
+.tb{background:var(--title);color:var(--title-fg);display:flex;align-items:center;gap:8px;padding:3px 6px;font-family:var(--font-head);font-size:10px;letter-spacing:.5px}
+.tb .sp{flex:1}
+.tb b{display:inline-block;width:16px;height:14px;background:var(--win);color:var(--win-black);border:1px solid;border-color:var(--win-light) var(--win-black) var(--win-black) var(--win-light);font:bold 10px/12px sans-serif;text-align:center}
+.body{display:grid;grid-template-columns:150px 1fr;gap:3px;margin:2px}
+.nav{display:grid;align-content:start;gap:3px}
+.nav .btn{width:100%;font-size:19px;padding:4px 8px}
+.nav .btn.on{border-color:var(--win-black) var(--win-light) var(--win-light) var(--win-black);background:#d8d8d8}
+.nav .btn .n{float:right;background:var(--red);color:#fff;font-size:14px;padding:0 5px;border-radius:2px}
+.screen{background:var(--screen);color:var(--screen-fg);border:2px solid;border-color:var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);padding:12px;min-height:460px;position:relative;overflow:hidden;min-width:0}
+.screen.scan::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.18) 2px 4px);mix-blend-mode:multiply}
+.status{display:flex;gap:4px;padding:2px;font-size:17px}
+.status span{flex:1;border:1px solid;border-color:var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);padding:1px 6px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h1,h2,h3{font-family:var(--font-head);text-wrap:balance;line-height:1.5;margin:0}
+h1{font-size:20px;color:var(--amber);margin-bottom:6px;text-shadow:3px 3px 0 #7a3b00}
+h2{font-size:11px;color:var(--lime);margin-bottom:10px}
+h3{font-size:9px;color:var(--sky);margin:10px 0 6px}
+p{margin:0 0 10px;max-width:62ch}
+.btn{font-family:var(--font-body);font-size:20px;background:var(--win);color:var(--win-black);border:2px solid;border-color:var(--win-light) var(--win-black) var(--win-black) var(--win-light);padding:3px 12px;cursor:pointer;text-align:left}
+.btn:active{border-color:var(--win-black) var(--win-light) var(--win-light) var(--win-black)}
+.btn:focus-visible{outline:2px dotted var(--win-black);outline-offset:-5px}
+.btn:disabled{color:var(--win-dark);text-shadow:1px 1px 0 var(--win-light);cursor:default}
+.btn.big{font-family:var(--font-head);font-size:11px;padding:12px 18px}
+.btn.sm{font-size:17px;padding:1px 8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hud{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;font-size:19px}
+.hud div{border:1px dashed rgba(255,255,255,.35);padding:4px 8px;font-variant-numeric:tabular-nums}
+.hud b{display:block;font-family:var(--font-head);font-size:8px;color:var(--sky);margin-bottom:4px}
+.bar{height:10px;background:#000;border:1px solid var(--screen-fg);margin-top:4px}
+.bar i{display:block;height:100%;background:var(--lime);transition:width .3s}
+.bar i.warn{background:var(--amber)}.bar i.bad{background:var(--red)}
+table{border-collapse:collapse;width:100%;font-size:19px;font-variant-numeric:tabular-nums}
+th{font-family:var(--font-head);font-size:8px;color:var(--sky);text-align:left;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.3)}
+td{padding:3px 6px;border-bottom:1px dotted rgba(255,255,255,.15);vertical-align:middle}
+tr.pick{cursor:pointer}tr.pick:hover td{background:rgba(255,255,255,.06)}
+tr.sel td{background:rgba(127,255,42,.12)}
+tr.out td{opacity:.45}
+.twrap{overflow-x:auto}
+canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-align:middle}
+.talk{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start}
+.talk canvas{width:96px;height:96px}
+.talk .bub{background:var(--screen-fg);color:var(--screen);padding:10px 12px;position:relative;font-size:21px;min-width:0}
+.talk .bub::before{content:"";position:absolute;left:-12px;top:20px;border:6px solid transparent;border-right-color:var(--screen-fg)}
+.who{font-family:var(--font-head);font-size:8px;color:var(--amber);text-align:center;margin-top:4px;line-height:1.4}
+.opts{display:grid;gap:6px;margin-top:12px}.opts .btn{white-space:normal}
+.res{margin-top:12px;padding:10px 12px;border:2px solid var(--amber);background:rgba(255,176,0,.08)}
+.res.bad{border-color:var(--red);background:rgba(255,60,60,.1)}.res.good{border-color:var(--lime);background:rgba(127,255,42,.08)}
+.log{font-size:17px;opacity:.85;max-height:220px;overflow:auto;border-top:1px dotted rgba(255,255,255,.3);margin-top:10px;padding-top:6px}
+.log div::before{content:"> "}
+.fine{font-size:16px;opacity:.7}
+.stat{display:inline-block;min-width:22px;text-align:right}
+.stat.hi{color:var(--lime)}.stat.lo{color:var(--red)}
+.mail{border:1px solid rgba(255,255,255,.25);padding:8px 10px;margin-bottom:8px}
+.mail.unread{border-color:var(--amber)}
+.mail .from{font-family:var(--font-head);font-size:8px;color:var(--amber)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cols>*{min-width:0}
+.blink{animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:0}}
+.tag{font-family:var(--font-head);font-size:7px;padding:2px 5px;border:1px solid currentColor;margin-left:6px;vertical-align:middle}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}.bar i{transition:none}}
+@media (max-width:640px){body{font-size:18px}.body{grid-template-columns:1fr}.nav{grid-template-columns:repeat(3,1fr)}.nav .btn{font-size:16px;padding:3px 6px}.cols{grid-template-columns:1fr}.talk{grid-template-columns:72px 1fr}.talk canvas{width:72px;height:72px}}
+</style>
+</head>
+<body>
+
+<div class="win" role="application" aria-label="Field Manager 96">
+  <div class="tb"><span>FIELD MANAGER '96 — BIOLOGIC INTERACTIVE</span><span class="sp"></span><b>_</b><b>□</b><b>×</b></div>
+  <div class="body">
+    <div class="nav" id="nav"></div>
+    <div class="screen scan" id="screen"></div>
+  </div>
+  <div class="status"><span id="st1">Ready.</span><span id="st2">Season 1</span><span id="st3">Autosave on</span></div>
+</div>
+
+<script>
+/* =====================================================================
+   FIELD MANAGER '96 — BONES
+   A Football-Manager-style sim: you run the field office. Squad, season
+   of trips, training, recruitment, inbox, board.
+   ---------------------------------------------------------------------
+   TODO (grunt work, in priority order):
+   [1] runTrip(): replace the stat roll with the interactive mob+field
+       engine from mobilise95.html (excuse events keyed by trait, incidents).
+   [2] Inbox: ~40 event templates (client complaints, resignations, head
+       office edicts, rival offers, injuries, birthdays). Hooks below.
+   [3] Recruitment: applicant generator w/ bluffed CVs, interviews, refs.
+   [4] Training camp variants, fatigue and injuries across trips.
+   [5] Press conference / client review after each trip w/ multiple choice.
+   [6] Multi-season: contracts, ageing, retirement, Rusty's testimonial.
+   [7] Sound, intro, save slots.
+   ===================================================================== */
+
+// ---------- audio ----------
+let AC=null,muted=false;
+function beep(f=880,d=.08,type='square',v=.05){try{if(muted)return;AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d)}catch(e){}}
+const sfx={click:()=>beep(1200,.05),good:()=>{beep(660,.1);setTimeout(()=>beep(880,.1),100);setTimeout(()=>beep(1320,.18),200)},bad:()=>{beep(220,.25,'sawtooth');setTimeout(()=>beep(160,.35,'sawtooth'),200)},meh:()=>beep(440,.15,'triangle'),ring:()=>{for(let i=0;i<4;i++)setTimeout(()=>beep(i%2?1400:1100,.07),i*90)}};
+
+// ---------- pixel portraits ----------
+const PAL={'.':null,k:'#1a1420',s:'#e6b48a',t:'#c98a5c',h:'#5a3416',y:'#f2d16b',o:'#ff7a1a',b:'#2b6cb0',g:'#3b8a3b',w:'#ffffff',r:'#c0392b',p:'#8e44ad',n:'#333333',q:'#d9d9d9',c:'#00a3a3',m:'#d63384'};
+const FACES={
+ rusty:['....oooo....','...oooooo...','..osssssso..','..ossssssso.','..sksssskso.','..ssssssss..','..sswwwsss..','...ssssss...','....ssss....','..yyyyyyyy..','.yyyyyyyyyy.','.yyy.yy.yyy.'],
+ brooke:['...hhhhhh...','..hhhhhhhh..','..hssssssh..','..hsksskshh.','..hssssssh..','.hhssssssshh','.hhsssrsshhh','.hh.ssss.hhh','....ssss....','..bbbbbbbb..','.bbbbbbbbbb.','.bbb.bb.bbb.'],
+ dazza:['............','.nnnnnnnnnn.','..nssssssn..','..ssssssss..','..sksssskss.','..ssssssss..','..ssrrrrss..','...ssssss...','....ssss....','..ooooooooo.','.ooowwwwooo.','.ooo.oo.ooo.'],
+ priya:['...kkkkkk...','..kkkkkkkk..','..kttttttk..','..ktkttktkk.','.kkttttttkk.','.kkttttttkk.','.kktttrtttk.','.kk.tttt.kk.','....tttt....','..gggggggg..','.gggwggwggg.','.ggg.gg.ggg.'],
+ marcus:['............','....kkkk....','...kttttk...','..kttttttk..','..tktttkttt.','..tttttttt..','..ttwwwwtt..','...tttttt...','....tttt....','..qqqqqqqq..','.qqqqqqqqqq.','.qqq.qq.qqq.'],
+ colin:['............','...qqqqqq...','..qssssssq..','..sssssssss.','..sbsssbsss.','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..nnnnnnnn..','.nnnwwwwnnn.','.nnn.nn.nnn.'],
+ jules:['...yyyyyy...','..yyyyyyyy..','..ysssssyy..','..ysksskyy..','..ysssssyy..','..yssssssy..','..ssrrrrss..','...ssssss...','....ssss....','..cccccccc..','.cccwwwwccc.','.ccc.cc.ccc.'],
+ tran:['...kkkkkk...','..kkkkkkkk..','..kssssssk..','..sksssksss.','..ssssssss..','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..mmmmmmmm..','.mmmmmmmmmm.','.mmm.mm.mmm.'],
+ craig:['....hhhh....','...hhhhhh...','..hssssssh..','..hsksskshh.','..hssssssh..','..ssssssss..','..ssrrrrss..','...ssssss...','....ssss....','..gggggggg..','.gggggggggg.','.ggg.gg.ggg.'],
+ nadia:['...kkkkkk...','..kkkkkkkk..','.kkttttttkk.','.kktkttktkk.','.kkttttttkk.','.kkttttttkk.','.kktttrttkk.','.kk.tttt.kk.','....tttt....','..oooooooo..','.oooooooooo.','.ooo.oo.ooo.'],
+ generic:['............','...ssssss...','..ssssssss..','..sksssskss.','..ssssssss..','..ssssssss..','..sswwwwss..','...ssssss...','....ssss....','..qqqqqqqq..','.qqqqqqqqqq.','.qqq.qq.qqq.'],
+};
+function portrait(cv,key){const rows=FACES[key]||FACES.generic;const c=cv.getContext('2d');cv.width=12;cv.height=12;rows.forEach((r,y)=>[...r].forEach((ch,x)=>{const col=PAL[ch];if(col){c.fillStyle=col;c.fillRect(x,y,1,1)}}))}
+
+// ---------- data: staff ----------
+// stats 1-20 (FM scale). traits drive which excuse pools fire in the trip engine (TODO [1]).
+// wage $/week. contract = weeks left. rel = reliability (does the task get done).
+const STAFF0=[
+ {id:'rusty', name:'Rusty',   role:'Senior Ecologist',   face:'rusty', age:54, field:18, admin:4,  rel:9,  fit:8,  morale:70, wage:2400, contract:30, traits:['veteran','allergic-to-forms','snake-magnet']},
+ {id:'brooke',name:'Brooke',  role:'Graduate Ecologist', face:'brooke',age:24, field:9,  admin:16, rel:15, fit:13, morale:80, wage:1500, contract:52, traits:['over-prepares','laminator','emails-clients']},
+ {id:'dazza', name:'Dazza',   role:'Field Tech / Driver',face:'dazza', age:31, field:12, admin:3,  rel:7,  fit:16, morale:75, wage:1600, contract:20, traits:['loses-things','parking-fines','good-in-a-crisis']},
+ {id:'priya', name:'Priya',   role:'Botanist',           face:'priya', age:36, field:17, admin:8,  rel:8,  fit:11, morale:85, wage:2100, contract:40, traits:['distractible','names-animals','finds-rare-things']},
+ {id:'marcus',name:'Marcus',  role:'Subcontractor',      face:'marcus',age:44, field:11, admin:2,  rel:4,  fit:10, morale:100,wage:1900, contract:8,  traits:['unreachable','fishing','unbothered']},
+ {id:'jules', name:'Jules',   role:'Zoologist',          face:'jules', age:29, field:14, admin:11, rel:13, fit:14, morale:65, wage:1900, contract:26, traits:['solid','wants-promotion']},
+ {id:'tran',  name:'Tran',    role:'GIS / Data',         face:'tran',  age:27, field:5,  admin:18, rel:17, fit:7,  morale:70, wage:1700, contract:45, traits:['office-only','fixes-everything']},
+ {id:'craig', name:'Craig',   role:'Seed Collector',     face:'craig', age:39, field:13, admin:6,  rel:12, fit:15, morale:60, wage:1650, contract:12, traits:['on-loan-from-seed','quiet']},
+];
+// recruit market (TODO [3]: generate these)
+const MARKET0=[
+ {id:'nadia', name:'Nadia',   role:'Ecologist',          face:'nadia', age:33, field:15, admin:12, rel:14, fit:12, morale:70, wage:2000, contract:52, traits:['ex-competitor','sharp'], cv:'Six years with a rival. Left "for family reasons". Reference is her brother.'},
+ {id:'ben',   name:'Ben',     role:'Graduate',           face:'generic',age:22,field:6,  admin:9,  rel:11, fit:17, morale:90, wage:1300, contract:52, traits:['keen','no-licence'], cv:'Honours in frogs. Has never driven a manual. Very keen.'},
+ {id:'shaz',  name:'Shaz',    role:'Field Tech',         face:'generic',age:47,field:14, admin:5,  rel:16, fit:12, morale:70, wage:1750, contract:26, traits:['ex-drilling','no-nonsense'], cv:'Twenty years on drill rigs. "Ran the camp." Tattoos of two of the seven wastes.'},
+];
+
+// ---------- data: season ----------
+const CLIENTS={newm:'Newmont-ish',s32:'South of 32',rio:'Big Red Iron',dept:'The Department',lith:'Lithium Startup'};
+const TRIPS0=[
+ {wk:2, client:'rio', name:'Baseline fauna, Pilbara',      days:5, need:{field:3,admin:1}, val:38000},
+ {wk:5, client:'newm',name:'Targeted flora, Boddington',   days:4, need:{field:2,admin:1}, val:24000},
+ {wk:8, client:'lith',name:'Seed collection, Goldfields',  days:6, need:{field:3,admin:0}, val:31000},
+ {wk:11,client:'s32', name:'Bat & nocturnal, Worsley',     days:5, need:{field:3,admin:1}, val:35000},
+ {wk:14,client:'dept',name:'Threatened species, Kimberley',days:8, need:{field:4,admin:1}, val:62000},
+ {wk:18,client:'rio', name:'Trapping, Pilbara wet season', days:6, need:{field:4,admin:1}, val:48000},
+ {wk:22,client:'newm',name:'Weed survey, Boddington',      days:3, need:{field:2,admin:0}, val:15000},
+ {wk:26,client:'lith',name:'Subterranean fauna, Goldfields',days:7,need:{field:3,admin:2}, val:55000},
+ {wk:30,client:'s32', name:'Rehab monitoring, Worsley',    days:4, need:{field:2,admin:1}, val:22000},
+ {wk:34,client:'dept',name:'Marine turtles, Ningaloo',     days:9, need:{field:4,admin:1}, val:70000},
+ {wk:38,client:'rio', name:'Dry season fauna, Pilbara',    days:6, need:{field:4,admin:1}, val:50000},
+ {wk:42,client:'newm',name:'Year-end audit, Boddington',   days:2, need:{field:1,admin:2}, val:12000},
+];
+const SEASON_WEEKS=46;
+const BOARD0={safety:2,revenue:400000,clients:4}; // max recordables, min revenue, min clients still talking to us
+
+// ---------- state ----------
+const START=()=>({week:1,season:1,cash:60000,revenue:0,recordables:0,board:60,
+ staff:JSON.parse(JSON.stringify(STAFF0)),market:JSON.parse(JSON.stringify(MARKET0)),
+ trips:JSON.parse(JSON.stringify(TRIPS0)),clientRep:{newm:60,s32:60,rio:60,dept:60,lith:60},
+ inbox:[],log:[],screen:'title',view:'office',training:{}});
+let S=null;
+const $=s=>document.querySelector(s);const screen=$('#screen');
+function save(){try{localStorage.setItem('fm96',JSON.stringify(S))}catch(e){}}
+function loadable(){try{const s=JSON.parse(localStorage.getItem('fm96'));return s&&s.screen!=='title'&&s.screen!=='end'}catch(e){return false}}
+function status(t){$('#st1').textContent=t;$('#st2').textContent=S?`Wk ${S.week}/${SEASON_WEEKS} · S${S.season}`:''}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+const money=n=>'$'+Math.round(n).toLocaleString();
+const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v));
+const stat=(v,hi=14,lo=7)=>`<span class="stat ${v>=hi?'hi':v<=lo?'lo':''}">${v}</span>`;
+function mail(from,subj,body,opts){S.inbox.unshift({from,subj,body,opts,read:false,wk:S.week});}
+function nextTrip(){return S.trips.find(t=>!t.result)}
+function unread(){return S.inbox.filter(m=>!m.read).length}
+function hud(){const t=nextTrip();return `<div class="hud">
+ <div><b>Week</b>${S.week} / ${SEASON_WEEKS}</div>
+ <div><b>Cash</b>${money(S.cash)}</div>
+ <div><b>Revenue</b>${money(S.revenue)}<div class="fine">target ${money(BOARD0.revenue)}</div></div>
+ <div><b>Recordables</b>${S.recordables} / ${BOARD0.safety}</div>
+ <div><b>Board</b>${S.board}%<div class="bar"><i class="${S.board<35?'bad':S.board<55?'warn':''}" style="width:${S.board}%"></i></div></div>
+ <div><b>Next trip</b>${t?`Wk ${t.wk} · ${t.days}d`:'Season over'}</div></div>`}
+
+// ---------- nav ----------
+const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
+function nav(){$('#nav').innerHTML=VIEWS.map(([k,l])=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${l}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+`<button class="btn" id="advance" ${nextTrip()&&nextTrip().wk===S.week?'style="color:var(--title);font-weight:bold"':''}>${nextTrip()&&nextTrip().wk===S.week?'▶ Trip!':'▶ Next week'}</button>`;
+ $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;render()});
+ $('#advance').onclick=()=>{sfx.click();advance()}}
+function render(){S.screen='game';save();nav();({office,squad,season,inbox,train,recruit,board})[S.view]();}
+
+// ---------- screens ----------
+function title(){S=S||START();S.screen='title';screen.innerHTML=`
+ <h1>FIELD MANAGER '96</h1><h2>The office is yours. Good luck.</h2>
+ <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin<br>Head Office</div></div>
+ <div class="bub">Eight staff, twelve trips, forty-six weeks. The board wants ${money(BOARD0.revenue)} of revenue, no more than ${BOARD0.safety} recordables, and at least ${BOARD0.clients} clients still returning our calls in December.<br><br>Rusty's contract is up in ${STAFF0[0].contract} weeks. He hasn't mentioned it. That's how you know he's thinking about it.</div></div>
+ <div class="row" style="margin-top:14px"><button class="btn big" id="start">▶ NEW SEASON</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
+ <p class="fine" style="margin-top:14px">Bones build. Trips resolve on a stat roll for now; the interactive mob-and-field engine drops in later.</p>`;
+ portrait($('#hostcv'),'colin');$('#nav').innerHTML='';
+ $('#start').onclick=()=>{sfx.ring();S=START();seedInbox();S.view='office';render()};
+ const c=$('#cont');if(c)c.onclick=()=>{try{S=JSON.parse(localStorage.getItem('fm96'))}catch(e){}render()};
+ $('#mute').onclick=e=>{muted=!muted;e.target.textContent='Sound: '+(muted?'OFF':'ON')};status('Insert disc.')}
+
+function office(){const t=nextTrip();const wk=S.week;
+ screen.innerHTML=`${hud()}<h2>Office — week ${wk}</h2>
+ <div class="cols"><div>
+  <h3>This week</h3>
+  ${t&&t.wk===wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week. ${t.days} days for ${CLIENTS[t.client]}. Pick the team on the Season screen, or hit Trip.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}).</p>`:'<p>No more trips this season. Go to Board.</p>'}
+  ${unread()?`<p>${unread()} unread in the inbox.</p>`:''}
+  <h3>Wages</h3><p>${money(S.staff.reduce((a,s)=>a+s.wage,0))}/week across ${S.staff.length} staff.</p>
+  <h3>Watch list</h3>
+  ${S.staff.filter(s=>s.contract<=8||s.morale<40).map(s=>`<p>· ${s.name}: ${s.contract<=8?`contract ends in ${s.contract} wk`:''}${s.contract<=8&&s.morale<40?', ':''}${s.morale<40?'morale low':''}</p>`).join('')||'<p class="fine">Nobody on the watch list.</p>'}
+ </div><div>
+  <h3>Recent</h3><div class="log" style="border:0;margin:0;padding:0">${S.log.slice(-8).reverse().map(l=>`<div>${esc(l)}</div>`).join('')||'<div>Season started.</div>'}</div>
+ </div></div>`;status(t&&t.wk===wk?'Trip week.':'Office.')}
+
+function squad(sel){
+ screen.innerHTML=`${hud()}<h2>Squad</h2><div class="twrap"><table><tr><th></th><th>Name</th><th>Role</th><th>Age</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Mor</th><th>Wage</th><th>Ctr</th></tr>
+ ${S.staff.map(s=>`<tr class="pick ${sel===s.id?'sel':''}" data-id="${s.id}"><td><canvas id="cv-${s.id}"></canvas></td><td>${s.name}</td><td class="fine">${s.role}</td><td>${s.age}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${stat(s.morale,70,40)}</td><td>${money(s.wage)}</td><td>${s.contract}</td></tr>`).join('')}</table></div>
+ <div id="detail"></div>`;
+ S.staff.forEach(s=>{portrait($('#cv-'+s.id),s.face);$(`[data-id=${s.id}]`).onclick=()=>{sfx.click();squad(s.id)}});
+ if(sel){const s=S.staff.find(x=>x.id===sel);$('#detail').innerHTML=`<h3>${s.name} · ${s.role}</h3><p>Traits: ${s.traits.map(t=>`<span class="tag">${t}</span>`).join('')}</p>
+  <div class="row"><button class="btn sm" id="renew">Offer new contract (+52 wk, +10% wage)</button><button class="btn sm" id="fire">Let go (4 wk payout)</button></div>`;
+  $('#renew').onclick=()=>{sfx.good();s.contract+=52;s.wage=Math.round(s.wage*1.1);s.morale=clamp(s.morale+10);S.log.push(`${s.name} re-signed to wk ${S.week+s.contract}.`);squad(sel)};
+  $('#fire').onclick=()=>{sfx.bad();S.cash-=s.wage*4;S.staff=S.staff.filter(x=>x.id!==s.id);S.staff.forEach(x=>x.morale=clamp(x.morale-8));S.log.push(`${s.name} let go. Squad morale down.`);squad()}}
+ status('Squad.')}
+
+function season(){
+ screen.innerHTML=`${hud()}<h2>Season — ${S.trips.length} trips</h2><div class="twrap"><table><tr><th>Wk</th><th>Client</th><th>Trip</th><th>Days</th><th>Needs</th><th>Value</th><th>Result</th></tr>
+ ${S.trips.map((t,i)=>`<tr class="${t.result?'out':''} ${t.wk===S.week?'sel':''}"><td>${t.wk}</td><td>${CLIENTS[t.client]}</td><td>${esc(t.name)}</td><td>${t.days}</td><td class="fine">${t.need.field}F ${t.need.admin}A</td><td>${money(t.val)}</td><td>${t.result?`${t.result.stars}★ ${t.result.rec?t.result.rec+' rec':''}`:t.wk===S.week?'<b>NOW</b>':'—'}</td></tr>`).join('')}</table></div>
+ <h3>Client relations</h3><div class="hud">${Object.entries(S.clientRep).map(([k,v])=>`<div><b>${CLIENTS[k]}</b>${v}%<div class="bar"><i class="${v<35?'bad':v<55?'warn':''}" style="width:${v}%"></i></div></div>`).join('')}</div>`;status('Fixtures.')}
+
+function inbox(){
+ screen.innerHTML=`${hud()}<h2>Inbox</h2>${S.inbox.length?S.inbox.map((m,i)=>`<div class="mail ${m.read?'':'unread'}" data-i="${i}"><div class="from">${esc(m.from)} · wk ${m.wk}</div><b>${esc(m.subj)}</b><div>${esc(m.body)}</div>${m.opts&&!m.done?`<div class="row" style="margin-top:6px">${m.opts.map((o,j)=>`<button class="btn sm" data-i="${i}" data-j="${j}">${esc(o.l)}</button>`).join('')}</div>`:m.done?`<div class="fine">→ ${esc(m.done)}</div>`:''}</div>`).join(''):'<p class="fine">Nothing. Suspicious.</p>'}`;
+ S.inbox.forEach(m=>m.read=true);nav();
+ screen.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{sfx.click();const m=S.inbox[b.dataset.i],o=m.opts[b.dataset.j];const r=o.fn();m.done=r||o.l;S.log.push(`Inbox: ${m.subj} → ${o.l}`);inbox()});
+ status('Inbox.')}
+
+function train(){
+ // TODO [4]: camps, injuries, fatigue. Bones: one stat +1 per week per person, costs $500.
+ screen.innerHTML=`${hud()}<h2>Training — this week</h2><p class="fine">Each session: +1 to a stat, $500, and they're unavailable if a trip mobilises this week. Reliability is the hard one.</p>
+ <div class="twrap"><table><tr><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Plan</th></tr>
+ ${S.staff.map(s=>`<tr><td>${s.name}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>
+  <select id="tr-${s.id}" data-id="${s.id}" style="font-family:var(--font-body);font-size:18px"><option value="">—</option><option value="field">Fieldcraft</option><option value="admin">Admin / forms</option><option value="rel">Reliability (50% chance)</option><option value="fit">Fitness</option></select></td></tr>`).join('')}</table></div>`;
+ S.staff.forEach(s=>{const el=$('#tr-'+s.id);el.value=S.training[s.id]||'';el.onchange=()=>{S.training[s.id]=el.value;save()}});status('Training.')}
+
+function recruit(){
+ screen.innerHTML=`${hud()}<h2>Recruitment</h2><p class="fine">CVs are what they say they are. Interviews cost a week of your attention. Hiring costs 2 weeks' wages up front.</p>
+ ${S.market.map(a=>`<div class="mail"><div class="row"><canvas id="mk-${a.id}"></canvas><div><b>${a.name}</b> · ${a.role} · ${a.age}<div class="fine">${esc(a.cv)}</div></div></div>
+  <div class="row" style="margin-top:6px"><span class="fine">Fld ${stat(a.field)} Adm ${stat(a.admin)} Rel ${a.seen?stat(a.rel):'??'} Fit ${stat(a.fit)} · ${money(a.wage)}/wk</span><button class="btn sm" data-int="${a.id}" ${a.seen?'disabled':''}>Interview</button><button class="btn sm" data-hire="${a.id}">Hire</button></div></div>`).join('')||'<p class="fine">Market is empty. TODO [3]: applicant generator.</p>'}`;
+ S.market.forEach(a=>{portrait($('#mk-'+a.id),a.face);
+  $(`[data-int="${a.id}"]`).onclick=()=>{sfx.meh;a.seen=true;S.log.push(`Interviewed ${a.name}. Reliability turns out to be ${a.rel}.`);recruit()};
+  $(`[data-hire="${a.id}"]`).onclick=()=>{sfx.good();S.cash-=a.wage*2;S.market=S.market.filter(x=>x.id!==a.id);S.staff.push(a);S.log.push(`Hired ${a.name}.`);S.view='squad';render()}});
+ status('Recruit.')}
+
+function board(){const done=S.trips.filter(t=>t.result).length;const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
+ screen.innerHTML=`${hud()}<h2>Board — Colin's view</h2>
+ <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin</div></div><div class="bub">${done} of ${S.trips.length} trips done. Revenue ${money(S.revenue)} against ${money(BOARD0.revenue)}. ${S.recordables} recordable${S.recordables===1?'':'s'}, limit ${BOARD0.safety}. ${happy} client${happy===1?'':'s'} still taking our calls.<br><br>${S.board>=70?'Carry on.':S.board>=45?'The board has "questions".':'The board has a name in mind. It is not yours.'}</div></div>
+ <h3>Targets</h3><div class="hud">
+  <div><b>Revenue</b>${Math.round(S.revenue/BOARD0.revenue*100)}%<div class="bar"><i style="width:${clamp(S.revenue/BOARD0.revenue*100)}%"></i></div></div>
+  <div><b>Safety</b>${S.recordables<=BOARD0.safety?'On track':'Over'}</div>
+  <div><b>Clients</b>${happy} / ${BOARD0.clients}</div></div>
+ ${S.week>=SEASON_WEEKS||!nextTrip()?`<div class="row" style="margin-top:14px"><button class="btn big" id="endseason">▶ END OF SEASON REVIEW</button></div>`:''}`;
+ portrait($('#hostcv'),'colin');const e=$('#endseason');if(e)e.onclick=()=>{sfx.click();endSeason()};status('Board.')}
+
+// ---------- weekly loop ----------
+function advance(){const t=nextTrip();
+ if(t&&t.wk===S.week)return pickTeam(t);
+ // training
+ for(const id in S.training){const k=S.training[id];const s=S.staff.find(x=>x.id===id);if(!s||!k)continue;S.cash-=500;
+  if(k==='rel'){if(Math.random()<.5){s.rel=Math.min(20,s.rel+1);S.log.push(`${s.name} reliability +1.`)}else S.log.push(`${s.name} did the reliability course. Nothing changed.`)}
+  else{s[k]=Math.min(20,s[k]+1)}}
+ S.training={};
+ // wages, contracts, morale drift
+ S.staff.forEach(s=>{S.cash-=s.wage;s.contract--;s.morale=clamp(s.morale+(Math.random()<.5?-1:1));
+  if(s.contract===4)mail(s.name,'Quick chat when you have a sec?',`${s.name}'s contract ends in 4 weeks. They have not said anything else. That is the message.`,[{l:'Renew now (+10%)',fn(){s.contract+=52;s.wage=Math.round(s.wage*1.1);s.morale=clamp(s.morale+10);return 'Renewed.'}},{l:'Let it run',fn(){s.morale=clamp(s.morale-10);return 'Noted. So did they.'}}]);
+  if(s.contract===0){S.staff=S.staff.filter(x=>x.id!==s.id);S.log.push(`${s.name}'s contract ended. Gone.`);mail('Head Office','Departure',`${s.name} has left. Their laptop has not.`)}});
+ S.week++;weeklyEvent();
+ if(S.week>SEASON_WEEKS){S.view='board'}
+ render()}
+
+// TODO [2]: 40+ templates. Bones: a small pool.
+function weeklyEvent(){if(Math.random()>.5)return;const pool=[
+ ()=>{const s=S.staff[Math.floor(Math.random()*S.staff.length)];if(!s)return;mail(s.name,'Sick day',`${s.name} is "crook". Their Instagram is at Rottnest.`,[{l:'Let it go',fn(){s.morale=clamp(s.morale+5);return 'Let it go.'}},{l:'Have a word',fn(){s.rel=Math.min(20,s.rel+1);s.morale=clamp(s.morale-10);return 'Had a word. Reliability +1, morale -10.'}}])},
+ ()=>{const c=Object.keys(CLIENTS)[Math.floor(Math.random()*5)];mail(CLIENTS[c],'Re: Re: Re: invoice',`${CLIENTS[c]} disputes an invoice from a trip nobody remembers.`,[{l:'Credit them $2,000',fn(){S.cash-=2000;S.clientRep[c]=clamp(S.clientRep[c]+8);return 'Credited. They like you more.'}},{l:'Stand firm',fn(){S.clientRep[c]=clamp(S.clientRep[c]-6);return 'Stood firm. They remember.'}}])},
+ ()=>mail('Head Office','New form: 7C',`All trips now need Form 7C. There is no Form 7C.`,[{l:'Make one',fn(){S.board=clamp(S.board+3);return 'You made Form 7C. It is now official.'}},{l:'Ignore',fn(){return 'Nothing happened.'}}]),
+ ()=>{const s=S.staff.find(x=>x.traits.includes('wants-promotion'));if(!s)return;mail(s.name,'Development conversation',`${s.name} wants "Senior" in their title. And $200 a week.`,[{l:'Give it',fn(){s.wage+=200;s.morale=clamp(s.morale+20);s.role='Senior '+s.role;return 'Promoted.'}},{l:'Next year',fn(){s.morale=clamp(s.morale-15);return '"Next year." They heard "never".'}}])},
+ ()=>{const s=S.staff.find(x=>x.id==='rusty');if(!s)return;mail('Rusty','Fwd: Fwd: Fwd: opportunity',`Rusty has forwarded you a job ad from a competitor with no comment.`,[{l:'Ask him about it',fn(){s.morale=clamp(s.morale+10);return 'He says it was "for Dazza". It was not for Dazza.'}},{l:'Ignore',fn(){s.morale=clamp(s.morale-10);return 'Ignored. He noticed.'}}])},
+ ];pool[Math.floor(Math.random()*pool.length)]()}
+
+function seedInbox(){mail('Colin','Welcome',`Your predecessor left a note. It says "good luck" and "don't let Marcus near the sat phone". Season plan is on the Season screen.`);
+ mail('Fleet','Ute 3',`Ute 3 has "a new shape". Dazza says it was like that.`)}
+
+// ---------- trip: pick team ----------
+function pickTeam(t){S.screen='pick';S.pick=S.pick||[];save();
+ const inField=S.pick.length;const need=t.need.field+t.need.admin;
+ screen.innerHTML=`${hud()}<h2>Trip: ${esc(t.name)}</h2><p>${CLIENTS[t.client]} · ${t.days} days · needs ${t.need.field} field + ${t.need.admin} admin · worth ${money(t.val)}. Pick ${need}.</p>
+ <div class="twrap"><table><tr><th></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Mor</th><th>Traits</th></tr>
+ ${S.staff.map(s=>`<tr class="pick ${S.pick.includes(s.id)?'sel':''}" data-id="${s.id}"><td>${S.pick.includes(s.id)?'✔':'▢'}</td><td>${s.name}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${stat(s.morale,70,40)}</td><td class="fine">${s.traits.join(', ')}</td></tr>`).join('')}</table></div>
+ <div class="row" style="margin-top:12px"><button class="btn big" id="go" ${inField===need?'':'disabled'}>▶ MOBILISE (${inField}/${need})</button>${inField>0&&inField<need?`<button class="btn" id="short">Go short-handed (${inField}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button><button class="btn" id="back">Back to office</button></div>
+ <p class="fine" style="margin-top:8px">Short-handed: data and safety suffer. Cancel: no revenue, client relationship and board take a hit.</p>`;
+ screen.querySelectorAll('[data-id]').forEach(r=>r.onclick=()=>{sfx.click();const id=r.dataset.id;if(S.pick.includes(id))S.pick=S.pick.filter(x=>x!==id);else if(S.pick.length<need)S.pick.push(id);pickTeam(t)});
+ $('#go').onclick=()=>{sfx.ring();runTrip(t,S.pick.map(id=>S.staff.find(s=>s.id===id)));S.pick=[]};
+ const sh=$('#short');if(sh)sh.onclick=()=>{sfx.meh();t.short=need-S.pick.length;runTrip(t,S.pick.map(id=>S.staff.find(s=>s.id===id)));S.pick=[]};
+ $('#cancel').onclick=()=>{sfx.bad();S.clientRep[t.client]=clamp(S.clientRep[t.client]-20);S.board=clamp(S.board-8);t.result={stars:0,data:0,rec:0,cost:0,log:['Trip cancelled. Could not staff it.'],team:[]};S.log.push(`${t.name} cancelled. ${CLIENTS[t.client]} not impressed.`);mail(CLIENTS[t.client],'Cancellation',`We had a helicopter booked. We will be invoicing for the helicopter.`);S.pick=[];S.week++;S.view='office';render()};
+ $('#back').onclick=()=>{S.view='office';render()};status('Pick the team.')}
+
+// ---------- trip: resolve ----------
+// TODO [1]: replace with the interactive engine. Contract: takes (trip, team[]),
+// must set trip.result={stars,data,rec,cost,log[]}, adjust S.cash/S.revenue/S.recordables/S.clientRep/morale, then call tripResult(trip).
+function runTrip(t,team){const log=[];const r=()=>Math.random();const short=t.short||0;delete t.short;if(short)log.push(`Went ${short} short. Everyone doing two jobs.`);
+ const fld=team.reduce((a,s)=>a+s.field,0)/team.length,adm=team.reduce((a,s)=>a+s.admin,0)/team.length,rel=team.reduce((a,s)=>a+s.rel,0)/team.length,fit=team.reduce((a,s)=>a+s.fit,0)/team.length,mor=team.reduce((a,s)=>a+s.morale,0)/team.length;
+ let data=0,rec=0,cost=t.days*team.length*350;
+ // mob: admin + reliability
+ const mobScore=(adm*2+rel*3)/5;const mobOK=mobScore/20+r()*.3;
+ const missed=[];['medicals','sat phone','PPE','inductions'].forEach(k=>{if(r()>mobOK+.35)missed.push(k)});
+ log.push(`Mob: ${missed.length?'flew without '+missed.join(', '):'everything done'}. (${Math.round(mobScore)}/20)`);
+ // excuse flavour by trait
+ team.forEach(s=>{if(s.traits.includes('unreachable')&&r()<.6)log.push(`${s.name} did not answer the phone for two days.`);if(s.traits.includes('loses-things')&&r()<.5){log.push(`${s.name} lost the sat phone. Freighted a replacement.`);cost+=190}if(s.traits.includes('over-prepares')&&r()<.5)log.push(`${s.name} packed three first-aid kits and a laminator.`);if(s.traits.includes('snake-magnet')&&r()<.4)log.push(`${s.name} picked up something he shouldn't have.`)});
+ // field days
+ for(let d=1;d<=t.days;d++){const dayScore=(fld*3+rel*2+fit)/6/20+(mor-50)/200-short*.15;const ok=r()<dayScore;data+=ok?100/t.days:50/t.days;
+  if(!ok)log.push(`Day ${d}: half a day's data. Excuses were had.`);
+  const incP=.12+missed.length*.08-(fit-10)/100+short*.1;if(r()<incP){const bad=r()<.5;rec+=bad?1:0;cost+=bad?800:200;log.push(`Day ${d}: incident${bad?' (recordable)':' (near miss)'}${missed.length?' — would have helped to have '+missed[0]:''}.`)}}
+ data=Math.round(clamp(data));
+ // fatigue / morale
+ team.forEach(s=>{s.fit=Math.max(1,s.fit-(t.days>6?1:0));s.morale=clamp(s.morale+(rec?-8:+4))});
+ let stars=0;stars+=data>=90?2:data>=70?1:0;stars+=rec===0?2:rec===1?1:0;stars+=missed.length===0?1:0;
+ const rep=(stars-2.5)*8;S.clientRep[t.client]=clamp(S.clientRep[t.client]+rep);
+ S.revenue+=t.val;S.cash+=t.val-cost;S.recordables+=rec;S.board=clamp(S.board+(stars-2.5)*4-(rec*3));
+ t.result={stars,data,rec,cost,log,team:team.map(s=>s.name)};S.log.push(`${t.name}: ${stars}★, data ${data}%, ${rec} recordable${rec===1?'':'s'}.`);
+ if(rec>=2)mail('Colin','We need to talk about '+t.name,`Two recordables on one trip. The client has rung. I have rung. Ring me.`);
+ tripResult(t)}
+
+function tripResult(t){S.screen='result';S.week++;save();const r=t.result;(r.stars>=4?sfx.good:r.stars<=1?sfx.bad:sfx.meh)();
+ screen.innerHTML=`${hud()}<h1 style="font-size:14px">${r.stars>=4?'GOOD TRIP':r.stars>=2?'A TRIP HAPPENED':'NEVER AGAIN'}</h1><h2>${esc(t.name)} · ${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</h2>
+ <p>Team: ${r.team.join(', ')}. Data ${r.data}% · ${r.rec} recordable${r.rec===1?'':'s'} · cost ${money(r.cost)} against ${money(t.val)} · ${CLIENTS[t.client]} now ${S.clientRep[t.client]}%.</p>
+ <div class="log">${r.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+ <div class="row" style="margin-top:12px"><button class="btn big" id="ok">▶ BACK TO THE OFFICE</button></div>`;
+ $('#ok').onclick=()=>{sfx.click();S.view='office';weeklyEvent();render()};status('Trip report.');nav()}
+
+function endSeason(){S.screen='end';save();const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
+ const pass=S.revenue>=BOARD0.revenue&&S.recordables<=BOARD0.safety&&happy>=BOARD0.clients;
+ const title=pass?(S.board>=75?'MANAGER OF THE YEAR':'CONTRACT EXTENDED'):(S.board>=45?'ONE MORE SEASON. PROBATION.':'SACKED');
+ screen.innerHTML=`${hud()}<h1>${title}</h1>
+ <div class="talk"><div><canvas id="hostcv"></canvas><div class="who">Colin</div></div><div class="bub">${pass?'Targets met. The board is pleased, which means they have already raised next year\'s.':'Targets missed. '+(S.recordables>BOARD0.safety?'The safety number did it. ':'')+(S.revenue<BOARD0.revenue?'Revenue was short. ':'')+(happy<BOARD0.clients?'Clients stopped ringing back. ':'')}<br><br>${S.staff.find(s=>s.id==='rusty')?'Rusty says it used to be worse.':'Rusty has gone to the competitor. He took the goanna story with him.'}</div></div>
+ <div class="log">${S.log.map(l=>`<div>${esc(l)}</div>`).join('')}</div>
+ <div class="row" style="margin-top:12px"><button class="btn big" id="again">▶ NEW SEASON</button></div>`;
+ portrait($('#hostcv'),'colin');$('#nav').innerHTML='';(pass?sfx.good:sfx.bad)();
+ $('#again').onclick=()=>{S=START();seedInbox();S.view='office';render()};status('Season over.')}
+
+// ---------- boot ----------
+function boot(){S=null;title()}
+if(window.claude?.hot?.snapshot)window.claude.hot.snapshot(()=>S);
+window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=='title'){S=d;S.screen==='pick'?pickTeam(nextTrip()):render()}else boot()}):boot();
+</script>
+
+</body>
+</html>
