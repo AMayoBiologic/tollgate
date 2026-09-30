@@ -1004,7 +1004,7 @@ const PR={he:{he:'he',him:'him',his:'his',He:'He',His:'His'},she:{he:'she',him:'
 const P=s=>PR[s&&s.p]||PR.he;
 let S=null;
 
-function START(){const s={season:1,week:1,cash:60000,revenue:0,desk:0,recordables:0,board:50,
+function START(){const s={season:1,week:2,cash:60000,revenue:0,desk:0,recordables:0,board:50,
  staff:JSON.parse(JSON.stringify(STAFF0)).map(x=>({...x,cond:100,inj:0,apps:0,recs:0,since:1,known:true})),
  market:[],trips:[],clientRep:{newm:60,s32:60,rio:60,dept:60,lith:60},
  inbox:[],log:[],cd:{},seen:{},flags:{},busy:[],training:{},att:3,camps:{},promise:null,
@@ -1026,7 +1026,7 @@ function avail(s){return s&&!s.inj&&!(s.away>0)&&!S.busy.includes(s.id)}
 function nextTrip(){return S.trips.filter(t=>!t.result).sort((a,b)=>a.wk-b.wk)[0]}
 function tripById(id){return S.trips.find(t=>t.id===id)}
 function log(t){S.log.push(`W${S.week}: ${t}`);if(S.log.length>120)S.log.shift()}
-function mail(m){S.inbox.unshift({...m,read:false,wk:S.week,done:null});if(S.inbox.length>60)S.inbox.pop()}
+function mail(m){S.inbox.unshift({...m,read:false,wk:S.week,aw:absWeek(),done:null});if(S.inbox.length>60)S.inbox.pop()}
 function unread(){return S.inbox.filter(m=>!m.read).length}
 function removeStaff(id,why){const s=staff(id);if(!s)return;S.staff=S.staff.filter(x=>x.id!==id);delete S.training[id];if(why)log(`${s.name} ${why}`);
  S.history.push({name:s.name,role:s.role,apps:s.apps,left:`S${S.season} W${S.week}`});
@@ -1051,6 +1051,8 @@ function applyE(e){if(!e)return '';let out=e.out||'';
  if(e.recruit)S.market.unshift(genApplicant(e.recruit));
  if(e.temp){const f=genFace();const p=pick(['he','she']);S.staff.push({id:'tmp'+(++S.apSeq),name:pick(NAMES[p]),p,role:e.temp.role,face:f,age:20,field:4,admin:7,rel:10,fit:16,morale:95,cond:100,inj:0,wage:0,contract:e.temp.weeks,traits:['keen','no-licence'],apps:0,recs:0,since:S.season,temp:true,known:true})}
  if(e.goto){S.view='proposal';S.goto=e.goto}
+ if(e.audit){S.audit={q:0,score:0,ans:null};S.view='audit'}
+ if(e.inv){S.view='safety';S.invOpen=e.inv}
  if(e.rpt){const o2=reportAction(e.rpt);out=[out,o2].filter(Boolean).join(' ')}
  if(e.note){const s=staff(e.note.id);if(s)fileNote(s,e.note.k,e.note.t)}
  if(e.chance){const w=R()<e.chance.p;const o2=applyE(w?e.chance.win:e.chance.lose);out=[out,o2].filter(Boolean).join(' ')}
@@ -1089,7 +1091,7 @@ function weekTick(o={}){const team=o.team||[];
   if(s.contract<=0){if(s.temp){log(`${s.name}'s work experience ended. They left a thank-you card.`);S.staff=S.staff.filter(x=>x.id!==s.id)}
    else{removeStaff(s.id,'finished up. Contract ended.');mail({from:'Head Office',face:'colin',subj:`${s.name} has left`,body:`${s.name}'s contract ended. Their laptop has not.`})}}});
  desk=Math.round(desk*(1-rshare));S.cash+=desk;S.revenue+=desk;S.desk+=desk;
- facWeekly();hrWeekly();careerWeekly();tenderWeekly();S.busy=[];S.att=3+(F('recruiter')?1:0);
+ facWeekly();hrWeekly();careerWeekly();tenderWeekly();expireMail();S.busy=[];S.att=3+(F('recruiter')?1:0);
  if(S.week%4===0)refreshMarket();
  S.week++;
  boardUpdate();
@@ -1149,6 +1151,7 @@ function runCamp(cid,ids){const c=CAMPS.find(x=>x.id===cid);if(!c||!campReady(c)
 function startTrip(t,ids){const need=t.need.field+t.need.admin;
  S.trip={id:t.id,team:ids.slice(),short:Math.max(0,need-ids.length),cover:Math.min(1,ids.length/need),phase:'mob',mobDays:MOB_DAYS+F('store'),done:{},cost:0,log:[],data:0,rec:0,day:0,jobs:[],jobSt:{},dayUsed:[],ev:null,forced:{},incUsed:[],perf:{},last:null};
  const T0=S.trip;[['veh','fleet',2],['sat','comms',1],['ppe','store',2],['med','medical',1]].forEach(([k,f,l])=>{if(F(f)>=l){T0.done[k]='auto';T0.log.push(`${MOB_TASKS.find(m=>m.id===k).n}: handled by ${FAC.find(x=>x.id===f).lv[l]}.`)}});
+ if(S.rank>=3&&usualBooking(true)&&!T0.log.some(l=>/mostly/.test(l)))T0.log.push('The admin booked the usual.');
  S.pick=[];S.screen='trip';if(S.trip.short)S.trip.log.push(`Going ${S.trip.short} short. Everyone doing two jobs.`)}
 function team(){return S.trip.team.map(staff).filter(Boolean)}
 function mobChance(s){return Math.max(.05,Math.min(.9,(s.admin*.45+s.rel*.55)/20*(.75+s.cond/400)*(.85+s.morale/670)+(S.flags.process?.06:0)))}
@@ -1169,7 +1172,7 @@ function fly(){const T=S.trip,t=tripById(T.id);T.phase='field';T.day=1;T.dayUsed
  for(let d=1;d<=t.days;d++){const j=[];for(let k=0;k<2;k++){if(d===1&&k===0)j.push(OPEN_JOB);else if(d===t.days&&k===1)j.push(CLOSE_JOB);else{j.push(pool[pi%pool.length]);pi++}}T.jobs.push(j)}
  const missed=MOB_TASKS.filter(m=>!T.done[m.id]);
  T.log.push(missed.length?`Flew without: ${missed.map(m=>m.n).join(', ')}.`:'Flew with everything done.');
- missed.forEach(m=>{const i=INCIDENTS.findIndex(x=>x.req===m.id);if(i<0||(INCIDENTS[i].supp&&S.flags[INCIDENTS[i].supp])||(INCIDENTS[i].id==='checkin'&&F('comms'))||(INCIDENTS[i].id==='heat'&&(F('medical')||(F('camp')&&R()<.5)))||R()>.75)return;
+ missed.forEach(m=>{const i=INCIDENTS.findIndex(x=>x.req===m.id);if(i<0||(INCIDENTS[i].supp&&S.flags[INCIDENTS[i].supp])||(INCIDENTS[i].id==='checkin'&&F('comms'))||(INCIDENTS[i].id==='heat'&&(F('medical')||(F('camp')&&R()<.5)))||R()>.75||R()>incMod(i))return;
   let d=rint(Math.min(2,t.days),t.days),tries=0;while(T.forced[d]!=null&&tries++<10)d=rint(1,t.days);T.forced[d]=i});
  T.cost+=T.team.length*t.days*(F('travel')?360:COST_PD)*(S.strat&&S.strat.karratha&&/Pilbara/.test(t.name)?.75:1);
  applyBookings(T,t);if(T.late){T.jobSt['1:0']='x';T.jobSt['1:1']='x'}}
@@ -1186,7 +1189,7 @@ function resolveEv(i){const T=S.trip,ev=T.ev;if(!ev||ev.res!=null)return;const e
   T.rec+=rec;T.cost+=cost;T.data+=o.data||0;if(o.rep)S.clientRep[t.client]=clamp(S.clientRep[t.client]+o.rep);
   team().forEach(s=>{if(o.m)bumpStat(s,'morale',o.m);if(o.cond)bumpStat(s,'cond',o.cond)});
   if(o.inj){const s=staff(ev.a);if(s){s.inj=Math.max(s.inj,o.inj);T.log.push(`${s.name} injured: ${o.inj} wk.`)}}
-  if(rec){const s=staff(ev.a);if(s)s.recs++}
+  if(rec){const s=staff(ev.a);if(s)s.recs++;T.recInc=(T.recInc||[]).concat(ev.k);T.recTxt=(T.recTxt||[]).concat(tpl(INCIDENTS[ev.k].t,{p:cx.p,b:cx.b}))}
   if(['blast','missing','singlet'].includes(vid))fileNote(staff(ev.a),'misc',tpl(INCIDENTS[ev.k].t,{p:cx.p,b:cx.b}).slice(0,110));
   T.log.push(`D${T.day} incident: ${tpl(o.l,{p:cx.p,b:cx.b})}${rec?' (recordable)':''}`);return}
  const s=staff(ev.who);if(s){if(o.m)bumpStat(s,'morale',o.m);if(o.cond)bumpStat(s,'cond',o.cond)}T.cost+=(o.c||0)*(F('freight')?.5:1);if(!o.done)fileNote(s,'perf',tpl(e.t,{p:cx.p,o:cx.o}).slice(0,110));
@@ -1202,7 +1205,7 @@ function endDay(){const T=S.trip,t=tripById(T.id);if(T.ev)return;
  const tm=team();let idx=T.forced[T.day];
  if(idx==null){const miss=MOB_TASKS.filter(m=>!T.done[m.id]).length;
   let p=.07+t.hazard*.035+(S.flags.ute?.04:0)+T.short*.06+(avg(tm.map(s=>s.cond))<55?.08:0)+miss*.02-(tm.some(s=>s.traits.includes('4wd-ticket'))?.02:0);
-  if(R()<p*(F('hse')?.75:1)){const pool=INCIDENTS.map((x,i)=>i).filter(i=>!INCIDENTS[i].req&&!T.incUsed.includes(i)&&!(INCIDENTS[i].id==='reverse'&&F('kit')>=2)&&!(['bog','roo','flat'].includes(INCIDENTS[i].id)&&R()<F('fleet')*.35));if(pool.length)idx=pick(pool)}}
+  if(R()<p*(F('hse')?.75:1)){const pool=INCIDENTS.map((x,i)=>i).filter(i=>!INCIDENTS[i].req&&!T.incUsed.includes(i)&&R()<incMod(i)&&!(INCIDENTS[i].id==='reverse'&&F('kit')>=2)&&!(['bog','roo','flat'].includes(INCIDENTS[i].id)&&R()<F('fleet')*.35));if(pool.length)idx=pick(pool)}}
  delete T.forced[T.day];
  if(idx!=null&&tm.length){T.incUsed.push(idx);const inc=INCIDENTS[idx];
   let a=(inc.pref&&tm.find(s=>s.traits.includes(inc.pref)&&!s.inj))||pick(tm);const others=tm.filter(s=>s.id!==a.id);const b=others.length?pick(others).name:'the client rep';
@@ -1221,7 +1224,7 @@ function finishTrip(){const T=S.trip,t=tripById(T.id),tm=team();T.phase='result'
  if(t.prop&&t.prop.lead){const ld=staff(t.prop.lead);if(T.team.includes(t.prop.lead)){S.clientRep[t.client]=clamp(S.clientRep[t.client]+3);T.log.push(`${ld?ld.name:'The lead'} led it, as proposed.`)}else{S.clientRep[t.client]=clamp(S.clientRep[t.client]-8);T.log.push(`You proposed ${ld?ld.name:'a named lead'} and sent someone else. The client noticed.`)}}
  tm.forEach(s=>{s.clients=s.clients||{};s.clients[t.client]=(s.clients[t.client]||0)+1;s.apps++;bumpStat(s,'morale',(stars>=4?6:stars<=1?-8:0)-rec*5)});
  const best=tm.slice().sort((a,b)=>(T.perf[b.id]||0)-(T.perf[a.id]||0)||b.field-a.field)[0];
- t.result={stars,data,rec,cost:Math.round(T.cost),pay,missed,team:tm.map(s=>s.name),best:best?best.id:null,short:T.short,ready:T.ready??null,breaches:T.breaches||0};
+ t.result={stars,data,rec,cost:Math.round(T.cost),pay,missed,team:tm.map(s=>s.name),best:best?best.id:null,short:T.short,ready:T.ready??null,breaches:T.breaches||0,recInc:T.recInc||[],recTxt:T.recTxt||[]};rememberTrip(T,t);
  S.recordables+=rec;S.revenue+=pay;S.cash+=pay-T.cost;addReport(t,T);
  log(`${t.name}: ${stars}★, data ${data}%, ${rec} recordable${rec===1?'':'s'}, paid ${money(pay)}.`);
  if(rec>=2)mail({from:'Colin',face:'colin',subj:`We need to talk about ${t.name}`,body:'Two recordables on one trip. The client has rung. I have rung. Ring me.'});
@@ -1530,14 +1533,14 @@ const RANKS=[
   intro:"Welcome aboard. I pick the teams. You chase their paperwork, and you book the travel. Clients pay for flights if you book what their rules allow: inductions, medicals, PPE sizes. Everyone says they've done it. Nobody has done it. Get four trips out the door clean and we'll talk."},
  {n:'Mobilisation Coordinator',boss:'Colin',bossRole:'General Manager',face:'colin',review:5,
   intro:"Leanne's moved to Karratha. The job's yours. You pick the teams, you run the mob, and you're on the radio when it goes sideways in the field. Five trips, then we'll see."},
- {n:'HSE Manager',boss:'Colin',bossRole:'General Manager',face:'colin',review:8,
-  intro:"Safety's yours now. The coordinator runs the trips; every incident comes to you. You've got a safety budget for training and gear. Eight trips, no more than two recordables on your watch, and I'll have a bigger job for you."},
+ {n:'HSE Manager',boss:'Colin',bossRole:'General Manager',face:'colin',review:6,
+  intro:"Safety's yours now. The coordinator runs the trips; every incident comes to you. You've got a safety budget for training and gear. Six trips, no more than two recordables on your watch, and close out your investigations, and I'll have a bigger job for you."},
  {n:'General Manager',boss:'The Board',bossRole:'via Colin, Head Office',face:'colin',review:'season',
   intro:"I'm stepping back to head office. You've got the lot: staff, contracts, hiring, firing through HR, facilities, and the board's targets. You also have to win the work now: most jobs go to tender. Every job has a PO and a budget, and every report has a deadline. Start-up budget is $80,000. Don't spend it on a coffee machine. Or do. It's your office."},
  {n:'Director',boss:'The Chair',bossRole:'Board',face:'chair',review:'season',
   intro:"Congratulations, Director. You still run the place, and now you can grow it: a Pilbara depot, an acquisition, a Seed division. Two seasons. The board will judge you on what the company is worth when you hand it over."},
 ];
-const RANK_VIEWS=[['office','squad','season','inbox'],['office','squad','season','inbox'],['office','squad','season','inbox','train','facilities'],['office','squad','season','tenders','inbox','train','recruit','facilities','board'],['office','squad','season','tenders','inbox','train','recruit','facilities','strategy','board']];
+const RANK_VIEWS=[['office','squad','season','inbox'],['office','squad','season','inbox'],['office','squad','season','inbox','safety','train','facilities'],['office','squad','season','tenders','inbox','train','recruit','facilities','board'],['office','squad','season','tenders','inbox','train','recruit','facilities','strategy','board']];
 function isHSE(){return S.rank===2&&S.branch!=='dept'}
 function isDept(){return S.rank===2&&S.branch==='dept'}
 const DEPTS={fauna:{n:'Fauna',types:['fauna','bats','subs'],d:'Trapping, bats, subterranean fauna.'},botany:{n:'Botany',types:['flora'],d:'Flora surveys, weeds, rehab monitoring.'},seed:{n:'Seed & Coastal',types:['seed','marine'],d:'Seed collection, turtles, shorebirds.'}};
@@ -1571,7 +1574,7 @@ function beginTrip(t,ids){startTrip(t,ids);const T=S.trip;
  if(S.rank===0){T.admin=true;T.done={};T.mobDays=MOB_DAYS-2}
  if(isHSE()){autoMob();fly()}}
 function needsDebrief(t){return S.rank===1||S.rank>=3||(isHSE()&&t.result.rec>0)}
-function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrips++;S.rankRec=(S.rankRec||0)+r.rec;S.stats.trips++;S.stats.rec+=r.rec;
+function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrips++;S.rankRec=(S.rankRec||0)+r.rec;queueInvestigations(t);S.stats.trips++;S.stats.rec+=r.rec;
  if(S.rank===0)S.board=clamp(S.board+((r.ready??100)-80)/2.5+(r.stars-3)-4*(r.breaches||0));
  if(S.rank===1){const est=estCost(t),ov=r.cost-est;S.board=clamp(S.board+(r.stars-3)*5-r.rec*4-3*(r.breaches||0)+(ov<=0?(r.stars>=3?2:0):-Math.min(8,ov/est*20)))}
  if(isHSE())S.board=clamp(S.board+(r.rec===0?5:-7*r.rec));
@@ -1585,7 +1588,7 @@ function promote(branch,dept){const from=S.rank;S.rank++;if(S.rank===2){S.branch
   const extra=genSeasonTrips(types).filter(t=>t.wk>S.week+4);S.tenders=extra.map(toTender)}
  mail({from:rank().boss,face:rank().face,subj:`You're the ${rank().n}`,body:rank().intro});log(`Promoted to ${rank().n}.`)}
 // Reviews for trip-counted ranks (Admin, Coordinator).
-function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if(isDept()&&(S.deptWins||0)<2)return (S.retries||0)>=2?'sack':'again';if((S.retries||0)>=2&&b<65&&!(isHSE()&&(S.rankRec||0)<=SAFETY_LIMIT&&b>=65))return 'sack';if(isHSE()&&(S.rankRec||0)>SAFETY_LIMIT)return 'again';return b>=65?'promote':'again'}
+function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if(isDept()&&(S.deptWins||0)<2)return (S.retries||0)>=2?'sack':'again';if(isHSE()&&(S.invs||[]).some(v=>!v.done)&&b>=30)return (S.retries||0)>=2?'sack':'again';if((S.retries||0)>=2&&b<65&&!(isHSE()&&(S.rankRec||0)<=SAFETY_LIMIT&&b>=65))return 'sack';if(isHSE()&&(S.rankRec||0)>SAFETY_LIMIT)return 'again';return b>=65?'promote':'again'}
 
 // ---------- Director: strategy ----------
 const STRAT=[
@@ -1720,6 +1723,82 @@ function reportAction(a){const r=(S.reports||[]).find(x=>x.tid===a.tid);if(!r||r
  return ''}
 
 // =====================================================================
+// FLOW POLISH — mail expiry, remembered bookings and crews, year-end,
+// HSE investigations and audits
+// =====================================================================
+
+// ---------- inbox choices expire after three weeks ----------
+// Default is the last option (usually "leave it"). RFQ, review and report mails just lapse.
+function expireMail(){const now=absWeek();S.inbox.forEach(m=>{if(!m.opts||m.done||now-(m.aw??now)<3)return;
+ if(m.opts.some(o=>o.e&&(o.e.goto||o.e.rpt||o.e.audit||o.e.inv))){m.done='No reply.';return}
+ const o=m.opts[m.opts.length-1];const out=applyE(o.e);m.done=`No reply, so: ${o.l}. ${out}`.trim();log(`${m.subj}: no reply, defaulted to "${o.l}".`)})}
+
+// ---------- remembered bookings and crews ----------
+function rememberTrip(T,t){S.lastBook=S.lastBook||{};S.lastTeam=S.lastTeam||{};if(T.book&&bookingsDone(T))S.lastBook[t.client]={...T.book};S.lastTeam[t.client]=T.team.slice()}
+function usualBooking(sloppy){const T=S.trip,t=tripById(T.id);const b=(S.lastBook||{})[t.client];if(!b)return false;T.book={...b};
+ if(sloppy){const adm=Math.max(8,...S.staff.filter(s=>!s.temp).map(s=>s.admin));const err=Math.max(.05,.35-adm/60);const slips=[];
+  BOOK.forEach(x=>{if(R()<err){const o=pick(x.o.filter(o=>o.id!==b[x.id]));T.book[x.id]=o.id;slips.push(`${x.n.toLowerCase()}: ${o.l.toLowerCase()}`)}});
+  if(slips.length)T.log.push(`The admin booked the usual, mostly. Changed: ${slips.join('; ')}.`)}
+ return true}
+function bookSummary(b){return BOOK.map(x=>bookOpt(x.id,b[x.id]).l.split(',')[0]).join(' · ')}
+
+// ---------- year end for junior ranks ----------
+const PARTY=[{l:'Go, stay for one, leave',r:'Sensible. Nobody remembers you were there, which is the goal.',b:1},
+ {l:'Go, stay late, do the speech',r:'Rusty asked you to do the goanna story. You did the goanna story. People are still talking about it.',b:3,m:5},
+ {l:'Skip it, catch up on emails',r:"The emails are caught up. Your boss noticed you weren't there.",b:-2}];
+function yearSummary(){const done=S.trips.filter(t=>t.result&&!t.result.cancelled);
+ return {trips:done.length,stars:done.length?Math.round(avg(done.map(t=>t.result.stars))*10)/10:0,rec:S.recordables,happy:Object.values(S.clientRep).filter(v=>v>=50).length}}
+
+// ---------- HSE: investigations after every recordable ----------
+const INC_CAT={bog:'vehicle',roo:'vehicle',flat:'vehicle',reverse:'vehicle',heat:'heat',checkin:'comms',missing:'comms',lostrep:'comms',perentie:'wildlife',swag:'wildlife',
+ blast:'rules',singlet:'rules',fireban:'rules',gate:'rules',nojha:'rules',dust:'weather',gastro:'camp',threat:'rules'};
+const INVEST={
+ vehicle:{t:'Vehicle',causes:[{l:'Journey not planned for the conditions',ok:1},{l:'Driver error',ok:0},{l:'Bad luck on a bad track',ok:0}],
+  acts:[{l:'Journey management plan and 4WD refresher for all drivers ($4,000)',c:4000,s:2},{l:'Toolbox talk on track conditions',c:0,s:1},{l:'Remind the driver to take more care',c:0,s:0}]},
+ heat:{t:'Heat',causes:[{l:'Work-rest schedule not set for the forecast',ok:1},{l:'The worker didn\'t drink enough',ok:0},{l:'It was an unusually hot day',ok:0}],
+  acts:[{l:'Heat stress plan with a forecast trigger and shade on site ($3,000)',c:3000,s:2},{l:'Add hydration to the prestart',c:0,s:1},{l:'Tell everyone to drink more water',c:0,s:0}]},
+ comms:{t:'Communications',causes:[{l:'No check-in schedule the whole team knew',ok:1},{l:'One person forgot',ok:0},{l:'Poor reception in the area',ok:0}],
+  acts:[{l:'Tracked check-ins with an escalation plan ($2,500)',c:2500,s:2},{l:'Check-in times written on the whiteboard',c:0,s:1},{l:'Remind people to check in',c:0,s:0}]},
+ wildlife:{t:'Wildlife',causes:[{l:'Handling procedure not followed and not enforced',ok:1},{l:'The animal was unusually aggressive',ok:0},{l:'Experienced people take shortcuts',ok:0}],
+  acts:[{l:'Handling competency sign-off and proper gear ($2,000)',c:2000,s:2},{l:'Handling procedure added to the JHA',c:0,s:1},{l:'Tell them not to pick things up',c:0,s:0}]},
+ rules:{t:'Site rules',causes:[{l:'Site rules not briefed at the prestart',ok:1},{l:'Deliberate breach by one person',ok:0},{l:'Site rules are unclear',ok:0}],
+  acts:[{l:'Site-specific induction pack and a prestart checklist ($1,500)',c:1500,s:2},{l:'Rules read out at the next prestart',c:0,s:1},{l:'Written warning to the person',c:0,s:0}]},
+ weather:{t:'Weather',causes:[{l:'No stop-work trigger for weather',ok:1},{l:'Nobody could have seen it coming',ok:0},{l:'The team kept working',ok:0}],
+  acts:[{l:'Weather stop-work triggers and a BOM alert subscription ($800)',c:800,s:2},{l:'Weather added to the prestart',c:0,s:1},{l:'Tell them to use judgement',c:0,s:0}]},
+ camp:{t:'Camp',causes:[{l:'Camp food handling not checked by us',ok:1},{l:'Someone ate something dodgy',ok:0},{l:'Bad luck',ok:0}],
+  acts:[{l:'Camp standards added to the accommodation audit ($1,000)',c:1000,s:2},{l:'Raise it with the camp manager',c:0,s:1},{l:'Pack more Gastrolyte',c:0,s:0}]},
+};
+function incCat(idx){return INC_CAT[INCIDENTS[idx].id]||'rules'}
+function incMod(idx){return (S.incMods||{})[incCat(idx)]??1}
+function queueInvestigations(t){const ids=(t.result.recInc||[]);if(!isHSE()||!ids.length)return;S.invs=S.invs||[];
+ ids.forEach((i,n)=>{const cat=incCat(i);const v={id:'inv'+(++S.tripSeq),cat,inc:INCIDENTS[i].id,txt:(t.result.recTxt||[])[n]||'',trip:t.name,aw:absWeek(),done:false,cause:null,act:null};S.invs.push(v);
+  mail({from:'Mango',face:'radio',subj:`Investigation: ${INVEST[cat].t} incident on ${t.name}`,body:'A recordable needs a root cause and a corrective action. Open it from the Safety screen.',opts:[{l:'Open the investigation',e:{inv:v.id,out:'Opened.'}}]})})}
+function closeInvestigation(id,cause,act){const v=(S.invs||[]).find(x=>x.id===id);if(!v||v.done)return '';const I=INVEST[v.cat],c=I.causes[cause],a=I.acts[act];
+ v.done=true;v.cause=cause;v.act=act;if(a.c)spend(a.c);S.incMods=S.incMods||{};let out;
+ if(c.ok&&a.s===2){S.incMods[v.cat]=Math.min(S.incMods[v.cat]??1,.35);S.board=clamp(S.board+5);out=`Right cause, strong fix. ${I.t} incidents are now much less likely.`}
+ else if(c.ok&&a.s===1){S.incMods[v.cat]=Math.min(S.incMods[v.cat]??1,.7);S.board=clamp(S.board+2);out=`Right cause. The fix is paperwork, but it helps a bit.`}
+ else if(c.ok){S.board=clamp(S.board-2);out=`Right cause, but "be more careful" isn't a control. Nothing changes.`}
+ else{S.board=clamp(S.board-3);out=`That's not the root cause. It'll happen again.`}
+ log(`Investigation closed: ${I.t} on ${v.trip}. ${out}`);return out}
+
+// ---------- HSE: audits ----------
+function auditQuestions(){const camps=Object.keys(S.camps||{}).length,open=(S.invs||[]).filter(v=>!v.done).length,cats={};(S.invs||[]).forEach(v=>cats[v.cat]=(cats[v.cat]||0)+1);
+ const top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
+ return [
+  {q:'Show me your training records for field staff.',a:[{l:'Here they are, current as of this week.',sc:camps||S.flags.firstAid?3:-4,why:camps||S.flags.firstAid?'The auditor ticks the box.':"The auditor asks where this season's training is. There isn't any."},{l:"HR has them. I'll send them through.",sc:-1,why:'Noted as an observation.'},{l:"We're updating the matrix at the moment.",sc:-3,why:'Written down as a finding.'}]},
+  {q:'How do you track corrective actions from investigations?',a:[{l:'Every investigation has an action, an owner and a close-out date.',sc:open?-4:3,why:open?`The auditor finds ${open} investigation${open>1?'s':''} still open.`:'Every one is closed. The auditor is impressed.'},{l:"They're in Mango.",sc:0,why:'Fine.'},{l:'We talk about them at toolbox meetings.',sc:-2,why:"That's not tracking."}]},
+  {q:"What's your biggest safety risk right now?",a:['vehicle','heat','wildlife'].map(k=>({l:`${INVEST[k].t}: here's what we're doing about it.`,sc:top?(top[0]===k?3:-1):1,why:top?(top[0]===k?'It matches your incident data. Good answer.':`Your data says ${INVEST[top[0]].t.toLowerCase()}. The auditor points that out.`):'No incident data to argue with.'}))},
+ ]}
+function finishAudit(score){const b=score>=6?8:score>=2?3:score>=-2?-2:-8;S.board=clamp(S.board+b);S.audit=null;
+ const out=score>=6?'Clean audit. Colin forwards the report to the board.':score>=2?'A couple of observations. A pass.':score>=-2?'Findings to close out. Not a great look.':'Failed. Colin wants a plan by Friday.';log(`Audit: ${out}`);return out}
+// HSE-only inbox events: audits and quarterly client safety reports.
+INBOX.push(
+ {id:'hseaudit',r:2,rmax:2,cd:10,fn(){if(!isHSE()||S.rankTrips<1)return null;return {from:'Head Office HSE',face:'colin',subj:'Internal audit this week',body:"Head office is auditing the safety system. Three questions, one auditor, no warning.",opts:[{l:'Start the audit',e:{audit:true,out:'Audit started.'}}]}}},
+ {id:'quarterly',r:2,rmax:2,cd:12,fn(){if(!isHSE())return null;const c=rc();return {from:CLIENTS[c],face:'client',subj:'Quarterly safety report due',body:`${CLIENTS[c]} want your quarterly safety stats. Recordables, near misses, lead indicators.`,
+  opts:[{l:'Full report with lead indicators',e:{rep:[c,5],board:2,out:'They liked the lead indicators. Nobody else sends those.'}},{l:'Just the numbers',e:{rep:[c,1],out:'Received.'}},{l:'Leave out the near misses',e:{chance:{p:.5,win:{board:1,out:'Nobody noticed.'},lose:{rep:[c,-8],board:-6,out:'Their site logs show near misses you left out. Awkward call.'}}}}]}}},
+);
+
+// =====================================================================
 // UI
 // =====================================================================
 const $=s=>document.querySelector(s);const screen=$('#screen');
@@ -1751,7 +1830,7 @@ function hud(){const t=nextTrip(),rk=rank();
 
 // ---------- nav & routing ----------
 const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
-const VIEW_LABEL={tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
+const VIEW_LABEL={safety:'Safety',tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
 function nav(){if(!S||S.screen!=='game'){$('#nav').innerHTML=S&&S.screen==='trip'?'<p class="fine" style="padding:6px">On site. The office is closed.</p>':'';return}const tw=nextTrip()&&nextTrip().wk<=S.week;
  $('#nav').innerHTML=views().map(k=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${VIEW_LABEL[k]}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
  (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw?'<b>▶ Trip!</b>':'▶ Next week'}</button>`);
@@ -1766,10 +1845,11 @@ function render(){save();nav();
  if(S.screen==='final')return finalView();
  if(S.screen==='testimonial')return testimonialView();
  if(S.screen==='branch')return branchView();
- S.screen='game';nav();({office,squad,season,inbox,train,recruit,board,facilities,strategy,hr,tenders,proposal})[S.view]();faces()}
+ if(S.screen==='yearend')return yearEndView();
+ S.screen='game';nav();({office,squad,season,inbox,train,recruit,board,facilities,strategy,hr,tenders,proposal,safety,audit})[S.view]();faces()}
 
-function advance(){if(S.week>SEASON_WEEKS){if(S.rank<3){const b=S.board;newSeason();S.board=b;S.view='inbox';return render()}S.screen='end';return render()}
- const t=nextTrip();if(t&&t.wk<=S.week){if(S.rank===0||isHSE()){beginTrip(t,autoPickTeam(t));UI.task=UI.job=null;S.screen='trip';return render()}S.screen='pick';S.pick=t.prop?t.prop.team.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin):[];return render()}
+function advance(){if(S.week>SEASON_WEEKS){if(S.rank<3){S.party=null;S.screen='yearend';return render()}S.screen='end';return render()}
+ const t=nextTrip();if(t&&t.wk<=S.week){if(S.rank===0||isHSE()){beginTrip(t,autoPickTeam(t));UI.task=UI.job=null;S.screen='trip';return render()}S.screen='pick';const pre=t.prop?t.prop.team:((S.lastTeam||{})[t.client]||[]);S.pick=pre.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin);return render()}
  weekTick();
  if(S.rank>=3&&S.board<18&&S.week>10){S.screen='end';S.midSack=true;sfx.bad();return render()}
  if(S.week>SEASON_WEEKS)S.view=S.rank>=3?'board':'office';
@@ -1886,10 +1966,11 @@ function pickTeam(){const t=nextTrip();if(!t){S.screen='game';return render()}co
  ${t.prop&&t.prop.lead?`<p class="claim">Your proposal named ${staff(t.prop.lead)?staff(t.prop.lead).name:'a lead'} to lead this job. The proposed crew is pre-selected.</p>`:''}${S.promise&&!S.promise.gone&&S.promise.client===t.client?`<p class="claim">You promised ${CLIENTS[t.client]} ${staff(S.promise.id)?staff(S.promise.id).name:'someone'}.</p>`:''}
  <div class="twrap"><table><tr><th></th><th></th><th>Name</th><th>Fld</th><th>Adm</th><th>Rel</th><th>Fit</th><th>Cond</th><th>Mor</th><th>Traits</th></tr>
  ${S.staff.map(s=>{const ok=avail(s);return `<tr class="${ok?'pick':'out'} ${S.pick.includes(s.id)?'sel':''}" data-id="${ok?s.id:''}"><td>${S.pick.includes(s.id)?'✔':ok?'▢':'✘'}</td><td>${scv(s)}</td><td>${s.name}${s.inj?` <span class="inj">INJ ${s.inj}</span>`:''}</td><td>${stat(s.field)}</td><td>${stat(s.admin)}</td><td>${stat(s.rel)}</td><td>${stat(s.fit)}</td><td>${cbar(s.cond)}</td><td>${stat(s.morale,70,40)}</td><td class="fine">${s.traits.join(', ')}</td></tr>`}).join('')}</table></div>
- <div class="tbar"><button class="btn big" id="go" ${n===need?'':'disabled'}>▶ MOBILISE (${n}/${need})</button>${n>0&&n<need?`<button class="btn" id="short">Go short-handed (${n}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button></div>
+ <div class="tbar"><button class="btn" id="best">Best available</button><button class="btn big" id="go" ${n===need?'':'disabled'}>▶ MOBILISE (${n}/${need})</button>${n>0&&n<need?`<button class="btn" id="short">Go short-handed (${n}/${need})</button>`:''}<button class="btn" id="cancel">Cancel trip</button></div>
  <p class="fine" style="margin-top:8px">Short-handed: field checks get harder and incidents likelier. Cancelling: no revenue, and the client and board both take it badly.</p>`;faces();
  screen.querySelectorAll('tr[data-id]').forEach(r=>{if(!r.dataset.id)return;r.onclick=()=>{sfx.click();const id=r.dataset.id;if(S.pick.includes(id))S.pick=S.pick.filter(x=>x!==id);else if(S.pick.length<need)S.pick.push(id);render()}});
  const go=()=>{sfx.ring();beginTrip(t,S.pick);UI.task=UI.job=null;render()};
+ $('#best').onclick=()=>{sfx.click();S.pick=autoPickTeam(t);render()};
  $('#go').onclick=go;const sh=$('#short');if(sh)sh.onclick=go;
  $('#cancel').onclick=()=>{sfx.bad();S.clientRep[t.client]=clamp(S.clientRep[t.client]-20);S.board=clamp(S.board-8);t.result={stars:0,data:0,rec:0,cost:0,pay:0,missed:[],team:[],cancelled:true};
   log(`${t.name} cancelled. ${CLIENTS[t.client]} not impressed.`);mail({from:CLIENTS[t.client],face:'client',subj:'Cancellation',body:'We had a helicopter booked. We will be invoicing for the helicopter.'});S.cash-=2500;S.pick=[];S.screen='game';weekTick();S.view='office';render()};
@@ -1911,7 +1992,7 @@ function evPanel(){const T=S.trip,ev=T.ev,e=evData(ev),cx=evCtx(ev);
 function bindEv(){screen.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const T=S.trip;resolveEv(+b.dataset.o);const ev=T.ev;const o=evData(ev).o[ev.res];
   (ev.kind==='inc'?(o.inc&&!ev.fa?sfx.bad:sfx.meh):(o.done?sfx.good:sfx.bad))();render()});
  const n=$('#evnext');if(n)n.onclick=()=>{sfx.click();closeEv();UI.task=UI.job=null;render()}}
-function tripView(){const T=S.trip;if(!T){S.screen='game';return render()}const t=tripById(T.id);
+function tripView(){const T=S.trip;if(!T){S.screen='game';return render()}const t=tripById(T.id);if(UI.bookTrip!==T.id){UI.bookOpen=false;UI.bookTrip=T.id}
  if(T.phase==='result')return resultView();if(T.phase==='debrief')return debriefView();if(T.phase==='variation')return variationView();
  let body='';const last=T.last&&T.last.clean?`<div class="res good">${esc(T.last.t)}</div>`:'';
  if(T.ev){body=evPanel()}
@@ -2013,10 +2094,13 @@ const pressed='background:#d8d8d8;border-color:var(--win-black) var(--win-light)
 
 // ---------- bookings ----------
 function bookingsPanel(){const T=S.trip,t=tripById(T.id),n=T.team.length,r=CLIENT_REQ[t.client];
+ const last=(S.lastBook||{})[t.client];
+ if(S.rank>=1&&!UI.bookOpen){if(bookingsDone(T))return `<h3>Travel & freight</h3><p class="fine">Booked: ${esc(bookSummary(T.book))} · ${money(bookingTotal(T,t))}. <button class="btn sm" id="bkopen">Change</button></p>`;
+  if(last)return `<h3>Travel & freight</h3><p class="fine">Last time for ${CLIENTS[t.client]}: ${esc(bookSummary(last))}.</p><div class="row"><button class="btn sm" id="bkusual"><b>Same as last time</b></button><button class="btn sm" id="bkopen">Choose</button></div>`}
  return `<h3>Travel & freight</h3><p class="claim">${CLIENTS[t.client]}: ${esc(r.note)}</p><div class="twrap"><table>${BOOK.map(b=>{const sel=T.book&&T.book[b.id];const so=sel&&bookOpt(b.id,sel);
   return `<tr><td style="white-space:nowrap"><b>${b.n}</b>${b.id==='fly'?'<div class="fine">Recharged to client</div>':''}</td><td>${b.o.map(o=>{const on=sel===o.id,ok=bookOK(t.client,b.id,o.id);return `<button class="btn sm" data-bk="${b.id}" data-bo="${o.id}" style="margin:2px;${on?pressed:''}">${on?'● ':''}${esc(o.l)} · ${money(bookCost(b.id,o.id,t,n))}${ok?'':' <span style="color:var(--red)">⚠</span>'}</button>`}).join('')}${so?`<div class="fine">${esc(so.d)}</div>`:''}</td></tr>`}).join('')}</table></div>
   <p class="fine">Booked so far: ${money(bookingTotal(T,t))}${T.book&&T.book.fly&&bookOK(t.client,'fly',T.book.fly)?`, of which ${money(bookCost('fly',T.book.fly,t,n))} in flights goes back to the client`:''}. Flights that break a client rule (⚠) aren't reimbursed.</p>`}
-function bindBookings(){screen.querySelectorAll('[data-bk]').forEach(b=>b.onclick=()=>{sfx.click();book(b.dataset.bk,b.dataset.bo);render()})}
+function bindBookings(){const bo=$('#bkopen');if(bo)bo.onclick=()=>{UI.bookOpen=true;render()};const bu=$('#bkusual');if(bu)bu.onclick=()=>{sfx.good();usualBooking();render()};screen.querySelectorAll('[data-bk]').forEach(b=>b.onclick=()=>{sfx.click();book(b.dataset.bk,b.dataset.bo);render()})}
 
 // ---------- facilities ----------
 function facilities(){const hse=isHSE();const list=FAC.filter(f=>!hse||HSE_FAC.includes(f.id));const cats=[...new Set(list.map(f=>f.cat))];
@@ -2063,7 +2147,7 @@ function hr(){const s=staff(UI.hr);if(!s){S.view='squad';return render()}const c
 // ---------- promotion review (Admin, Coordinator) ----------
 function reviewView(){$('#nav').innerHTML='';const o=reviewOutcome(),rk=rank();
  const next=RANKS[S.rank+1];
- const body=o==='sack'&&(S.retries||0)>=2&&S.board>=30?`That's three reviews and it hasn't come good. I'm going to have to let you go.`:o==='promote'?`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. I've spoken to Colin. There's a ${next.n} job with your name on it.`:o==='sack'?`${S.rankTrips} trips and it hasn't worked. Confidence ${Math.round(S.board)}%. I'm going to have to let you go. Deb has the paperwork.`:isDept()&&(S.deptWins||0)<2?`${S.rankTrips} jobs delivered, but only ${S.deptWins||0} tender${S.deptWins===1?'':'s'} won. I need to see you win work. Two more trips.`:isHSE()&&(S.rankRec||0)>SAFETY_LIMIT?`${S.rankRec} recordables on your watch. The limit is ${SAFETY_LIMIT}. Two more trips, and get that number down.`:`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. Not bad, not there. Two more trips and we'll talk again.`;
+ const body=o==='sack'&&(S.retries||0)>=2&&S.board>=30?`That's three reviews and it hasn't come good. I'm going to have to let you go.`:o==='promote'?`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. I've spoken to Colin. There's a ${next.n} job with your name on it.`:o==='sack'?`${S.rankTrips} trips and it hasn't worked. Confidence ${Math.round(S.board)}%. I'm going to have to let you go. Deb has the paperwork.`:isHSE()&&(S.invs||[]).some(x=>!x.done)?`You've still got open investigations. I'm not promoting anyone with open investigations. Close them out.`:isDept()&&(S.deptWins||0)<2?`${S.rankTrips} jobs delivered, but only ${S.deptWins||0} tender${S.deptWins===1?'':'s'} won. I need to see you win work. Two more trips.`:isHSE()&&(S.rankRec||0)>SAFETY_LIMIT?`${S.rankRec} recordables on your watch. The limit is ${SAFETY_LIMIT}. Two more trips, and get that number down.`:`${S.rankTrips} trips. Confidence ${Math.round(S.board)}%. Not bad, not there. Two more trips and we'll talk again.`;
  screen.innerHTML=`<h1>PERFORMANCE REVIEW</h1><h2>${rk.n} · S${S.season} W${S.week}</h2>${talk(rk.face,`${rk.boss}<br>${rk.bossRole}`,esc(body))}
  <div class="tbar"><button class="btn big" id="rv">${o==='promote'?`▶ BECOME ${next.n.toUpperCase()}`:o==='sack'?'▶ CLEAR YOUR DESK':'▶ BACK TO WORK'}</button></div>`;faces();(o==='promote'?sfx.good:o==='sack'?sfx.bad:sfx.meh)();
  $('#rv').onclick=()=>{if(o==='promote'){if(S.rank===1){S.screen='branch';return render()}if(S.rank===2)S.cash=80000;promote();S.screen='game';S.view='inbox'}else if(o==='sack'){S.final='sacked';S.screen='final'}else{S.retries=(S.retries||0)+1;S.rankTrips=Math.max(0,rk.review-2);if(isHSE())S.rankRec=0;S.screen='game'}render()};status('Review.')}
@@ -2143,6 +2227,40 @@ function branchView(){$('#nav').innerHTML='';
  <div class="opts"><button class="btn" data-br="hse"><b>HSE Manager</b><br><span class="fine">Operations path. Incidents, training, safety gear, audits, misconduct investigations.</span></button>
  ${Object.entries(DEPTS).map(([k,d])=>`<button class="btn" data-br="dept" data-dp="${k}"><b>${d.n} Manager</b><br><span class="fine">Field department. ${d.d} RFQs, proposals, budgets, reports.</span></button>`).join('')}</div>`;faces();sfx.ring();
  screen.querySelectorAll('[data-br]').forEach(b=>b.onclick=()=>{sfx.good();promote(b.dataset.br,b.dataset.dp);S.screen='game';S.view='inbox';render()});status('Your call.')}
+
+// =====================================================================
+// UI — safety (investigations), audits, year end
+// =====================================================================
+function safety(){const open=(S.invs||[]).filter(v=>!v.done),closed=(S.invs||[]).filter(v=>v.done).slice(-6).reverse();UI.inv=UI.inv||{};
+ const risk=Object.keys(INVEST).map(k=>{const m=(S.incMods||{})[k]??1;return `<div><b>${INVEST[k].t}</b>${m<.5?'<span class="stat hi">controlled</span>':m<1?'reduced':'<span class="fine">baseline</span>'}</div>`}).join('');
+ screen.innerHTML=`${hud()}<h2>Safety</h2><p class="fine">Every recordable needs an investigation: find the real root cause, then pick a fix. Right cause plus a strong fix makes that kind of incident much less likely for good. Open investigations count against you at review and at audit.</p>
+ ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}
+ <h3>Open investigations</h3>${open.length?open.map(v=>{const I=INVEST[v.cat],sel=UI.inv[v.id]||(UI.inv[v.id]={c:null,a:null});
+  return `<div class="mail"><div class="from">${esc(v.trip)} · ${I.t}</div><b>${esc(v.txt||INCIDENTS.find(x=>x.id===v.inc).t.replace(/\{[a-zA-Z]+\}/g,'a team member'))}</b>
+  <div class="fine" style="margin-top:6px">Root cause:</div><div class="row">${I.causes.map((c,i)=>`<button class="btn sm" data-ic="${v.id}" data-i="${i}" style="${sel.c===i?pressed:''}">${esc(c.l)}</button>`).join('')}</div>
+  <div class="fine" style="margin-top:6px">Corrective action:</div><div class="row">${I.acts.map((a,i)=>`<button class="btn sm" data-ia="${v.id}" data-i="${i}" style="${sel.a===i?pressed:''}" ${a.c>S.budget?'disabled':''}>${esc(a.l)}</button>`).join('')}</div>
+  <div class="row" style="margin-top:6px"><button class="btn sm" data-close="${v.id}" ${sel.c!=null&&sel.a!=null?'':'disabled'}><b>Close investigation</b></button></div></div>`}).join(''):'<p class="fine">Nothing open.</p>'}
+ <h3>Risk controls</h3><div class="hud">${risk}</div>
+ ${closed.length?`<h3>Closed</h3>${closed.map(v=>`<p class="fine">${INVEST[v.cat].t} · ${esc(v.trip)}: ${esc(INVEST[v.cat].acts[v.act].l)}${INVEST[v.cat].causes[v.cause].ok?'':' (wrong root cause)'}</p>`).join('')}`:''}`;UI.msg=null;
+ screen.querySelectorAll('[data-ic]').forEach(b=>b.onclick=()=>{UI.inv[b.dataset.ic].c=+b.dataset.i;sfx.click();render()});
+ screen.querySelectorAll('[data-ia]').forEach(b=>b.onclick=()=>{UI.inv[b.dataset.ia].a=+b.dataset.i;sfx.click();render()});
+ screen.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{const s=UI.inv[b.dataset.close];UI.msg=closeInvestigation(b.dataset.close,s.c,s.a);(/strong|helps/.test(UI.msg)?sfx.good:sfx.bad)();render()});
+ status('Safety.')}
+function audit(){const A=S.audit;if(!A){S.view=isHSE()?'safety':'office';return render()}const Q=auditQuestions();
+ if(A.q>=Q.length){const out=finishAudit(A.score);UI.msg=out;S.view='safety';mail({from:'Head Office HSE',face:'colin',subj:'Audit result',body:out});return render()}
+ const q=Q[A.q];
+ screen.innerHTML=`${hud()}<h2>Internal audit · question ${A.q+1} of ${Q.length}</h2>${talk('colin','Auditor<br>Head Office',esc(q.q))}
+ ${A.ans==null?`<div class="opts">${q.a.map((a,i)=>`<button class="btn" data-aq="${i}">${i+1}. ${esc(a.l)}</button>`).join('')}</div>`:
+ `<div class="res ${q.a[A.ans].sc>0?'good':q.a[A.ans].sc<0?'bad':''}">${esc(q.a[A.ans].why)}</div><div class="tbar"><button class="btn big" id="aqn">▶ ${A.q+1<Q.length?'NEXT QUESTION':'FINISH'}</button></div>`}`;faces();
+ screen.querySelectorAll('[data-aq]').forEach(b=>b.onclick=()=>{const i=+b.dataset.aq;A.ans=i;A.score+=q.a[i].sc;(q.a[i].sc>0?sfx.good:q.a[i].sc<0?sfx.bad:sfx.meh)();render()});
+ const n=$('#aqn');if(n)n.onclick=()=>{A.q++;A.ans=null;sfx.click();render()};status('Audit.')}
+function yearEndView(){$('#nav').innerHTML='';const y=yearSummary(),rk=rank();
+ const lines=y.trips===0?{0:'Quiet year.',1:'Quiet year. Next year, more trips.',2:'Quiet year.'}:{0:`That's the year. ${y.trips} trips out the door. You got the hang of the paperwork faster than most.`,1:`Year done. ${y.trips} trips, averaging ${y.stars} stars. Not bad for a first year running mob.`,2:isDept()?`Year's done. Your department delivered ${y.trips} jobs. Next year we want more of them won on tender.`:`Year's done. ${y.rec} recordable${y.rec===1?'':'s'} across the company. Next year, fewer.`};
+ screen.innerHTML=`<h1>END OF SEASON ${S.season}</h1><h2>${rk.n}</h2>${talk(rk.face,`${rk.boss}<br>${rk.bossRole}`,esc(lines[S.rank]||'Good year.'))}
+ <div class="hud"><div><b>Trips</b>${y.trips}</div><div><b>Avg stars</b>${y.stars}</div><div><b>Recordables</b>${y.rec}</div><div><b>Happy clients</b>${y.happy} / 5</div><div><b>${rk.boss}'s confidence</b>${Math.round(S.board)}%</div></div>
+ <h3>Christmas party. Friday, the depot.</h3>${S.party!=null?`<div class="res">${esc(PARTY[S.party].r)}</div><div class="tbar"><button class="btn big" id="ny">▶ START SEASON ${S.season+1}</button></div>`:`<div class="opts">${PARTY.map((x,i)=>`<button class="btn" data-pty="${i}">${i+1}. ${esc(x.l)}</button>`).join('')}</div>`}`;faces();
+ screen.querySelectorAll('[data-pty]').forEach(b=>b.onclick=()=>{const x=PARTY[+b.dataset.pty];S.party=+b.dataset.pty;S.board=clamp(S.board+x.b);if(x.m)S.staff.forEach(s=>bumpStat(s,'morale',x.m));sfx.good();render()});
+ const ny=$('#ny');if(ny)ny.onclick=()=>{const b=S.board;newSeason();S.board=b;S.party=null;S.screen='game';S.view='inbox';sfx.ring();render()};status('Year end.')}
 </script>
 
 </body>
