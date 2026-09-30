@@ -1,13 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Field Manager '96</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
 <style>
-[hidden]{display:none!important}
-
 /* Layout: Win95 MDI window. Left nav rail, main panel, status bar. Single deliberate 1996 look. */
 :root{
   --desk:#008080; --win:#c0c0c0; --win-dark:#808080; --win-light:#ffffff; --win-black:#000000;
@@ -97,8 +90,6 @@ canvas{width:48px;height:48px;image-rendering:pixelated;max-width:100%;vertical-
 .tbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 select{font-family:var(--font-body);font-size:18px}
 </style>
-</head>
-<body>
 
 <div class="win" role="application" aria-label="Field Manager 96">
   <div class="tb"><span>FIELD MANAGER '96 — SUNDOWNER SOFTWORKS</span><span class="sp"></span><b>_</b><b>□</b><b>×</b></div>
@@ -1016,7 +1007,7 @@ function mkTrip(t){const n=t.need.field+t.need.admin;return {...t,id:'t'+(++S.tr
 // ---------- helpers ----------
 const staff=id=>S.staff.find(s=>s.id===id);
 function rs(f){const a=S.staff.filter(s=>!s.temp&&(!f||f(s)));return a.length?pick(a):null}
-function rc(){return pick(Object.keys(CLIENTS))}
+function rc(){return pick(Object.keys(S.clientRep))}
 function tpl(str,x={}){const p=x.p||null,pp=P(p);return String(str)
  .replace(/\{n\}|\{a\}/g,p?p.name:'').replace(/\{b\}/g,x.b||'').replace(/\{o\}/g,x.o||'someone').replace(/\{c\}/g,x.c||'')
  .replace(/\{best\}/g,x.best||'the team').replace(/\{miss\}/g,x.miss||'')
@@ -1065,7 +1056,7 @@ function addTrip(a){const k=TRIP_GEN.kinds.find(x=>x.type===(a.type||'flora'))||
  S.trips.push(t);S.trips.sort((x,y)=>x.wk-y.wk);log(`New job: ${t.name} (wk ${t.wk}).`)}
 
 // ---------- inbox trigger ----------
-function maybeInbox(force){if(!force&&R()>.55)return;
+function maybeInbox(force){if(!force&&R()>.55)return;if(!force&&S.rank===4&&S.gm&&R()<.5)return;
  const pool=INBOX.filter(x=>(S.cd[x.id]||0)<=S.week&&(x.r??3)<=S.rank&&(x.rmax??9)>=S.rank&&!blockedInbox(x.id));
  for(let tries=0;tries<8&&pool.length;tries++){const i=Math.floor(R()*pool.length),x=pool[i];pool.splice(i,1);
   const m=x.fn();if(m){S.cd[x.id]=S.week+x.cd;mail(m);return}}}
@@ -1073,7 +1064,7 @@ function answerMail(i,j){const m=S.inbox[i];if(!m||m.done||!m.opts)return;const 
 
 // ---------- weekly tick ----------
 function deskValue(s){if(s.temp)return 0;return Math.round((s.admin*28+s.field*9)*(.55+s.cond/220)*(1+.1*F('office')))}
-function weekTick(o={}){const team=o.team||[];
+function weekTick(o={}){const team=(o.team||[]).concat(S.gmTeams||[]);S.gmTeams=[];
  for(const id in S.training){const k=S.training[id],s=staff(id);if(!s||!k||team.includes(id)||!avail(s))continue;S.cash-=500;s.cond=clamp(s.cond-8);
   if(k==='rel'){if(R()<.45){s.rel=clamp(s.rel+1,1,20);log(`${s.name} reliability +1.`)}else log(`${s.name} did the reliability course. Nothing changed.`)}
   else{const cap=s.age>=50?16:20;if(s[k]<cap)s[k]=clamp(s[k]+1,1,20)}}
@@ -1086,12 +1077,12 @@ function weekTick(o={}){const team=o.team||[];
   const mt=55+5*F('office')+(F('coffee')?2:0)+(F('bonus')?3:0);s.morale=clamp(s.morale+(s.morale<mt?1:s.morale>mt+25?-1:0)+(R()<.5?-1:1));
   if(s.morale<25&&!s.temp&&R()<.08){mail({from:s.name,face:s.face,subj:'Resignation',body:`${s.name} has resigned. ${P(s).He} says it's "not you". It's partly you.`});removeStaff(s.id,'resigned.');return}
   if(s.contract===4&&!s.temp){const nw=Math.round(s.wage*(1.06-(F('bonus')?.04:0)+(s.morale<50?.08:0)+(Math.max(s.field,s.admin)>=16?.05:0))/10)*10;
-   mail({from:s.name,face:s.face,subj:'Quick chat when you have a sec?',body:`${s.name}'s contract ends in 4 weeks. ${P(s).He}'d want ${money(nw)}/wk to stay.`,
+   if(S.rank===4&&S.gm){const keep=s.rel>=8||s.field>=12||s.admin>=12;if(keep){s.contract+=52;s.wage=nw;bumpStat(s,'morale',8)}news(`${keep?`Renewed ${s.name} at ${money(nw)}/wk`:`Letting ${s.name}'s contract run out`}.`)}else mail({from:s.name,face:s.face,subj:'Quick chat when you have a sec?',body:`${s.name}'s contract ends in 4 weeks. ${P(s).He}'d want ${money(nw)}/wk to stay.`,
     opts:[{l:`Renew at ${money(nw)} (+52 wk)`,e:{s:{id:s.id,contract:52,wage:nw-s.wage,morale:8},out:'Renewed.'}},{l:'Let it run out',e:{s:{id:s.id,morale:-10},out:'Noted. So did they.'}}]})}
   if(s.contract<=0){if(s.temp){log(`${s.name}'s work experience ended. They left a thank-you card.`);S.staff=S.staff.filter(x=>x.id!==s.id)}
    else{removeStaff(s.id,'finished up. Contract ended.');mail({from:'Head Office',face:'colin',subj:`${s.name} has left`,body:`${s.name}'s contract ended. Their laptop has not.`})}}});
  desk=Math.round(desk*(1-rshare));S.cash+=desk;S.revenue+=desk;S.desk+=desk;
- facWeekly();hrWeekly();careerWeekly();tenderWeekly();expireMail();S.busy=[];S.att=3+(F('recruiter')?1:0);
+ facWeekly();hrWeekly();careerWeekly();dirWeekly();tenderWeekly();expireMail();S.busy=[];S.att=3+(F('recruiter')?1:0);
  if(S.week%4===0)refreshMarket();
  S.week++;
  boardUpdate();
@@ -1205,7 +1196,7 @@ function endDay(){const T=S.trip,t=tripById(T.id);if(T.ev)return;
  const tm=team();let idx=T.forced[T.day];
  if(idx==null){const miss=MOB_TASKS.filter(m=>!T.done[m.id]).length;
   let p=.07+t.hazard*.035+(S.flags.ute?.04:0)+T.short*.06+(avg(tm.map(s=>s.cond))<55?.08:0)+miss*.02-(tm.some(s=>s.traits.includes('4wd-ticket'))?.02:0);
-  if(R()<p*(F('hse')?.75:1)){const pool=INCIDENTS.map((x,i)=>i).filter(i=>!INCIDENTS[i].req&&!T.incUsed.includes(i)&&R()<incMod(i)&&!(INCIDENTS[i].id==='reverse'&&F('kit')>=2)&&!(['bog','roo','flat'].includes(INCIDENTS[i].id)&&R()<F('fleet')*.35));if(pool.length)idx=pick(pool)}}
+  if(R()<p*(F('hse')?.75:1)*gmSafe()){const pool=INCIDENTS.map((x,i)=>i).filter(i=>!INCIDENTS[i].req&&!T.incUsed.includes(i)&&R()<incMod(i)&&!(INCIDENTS[i].id==='reverse'&&F('kit')>=2)&&!(['bog','roo','flat'].includes(INCIDENTS[i].id)&&R()<F('fleet')*.35));if(pool.length)idx=pick(pool)}}
  delete T.forced[T.day];
  if(idx!=null&&tm.length){T.incUsed.push(idx);const inc=INCIDENTS[idx];
   let a=(inc.pref&&tm.find(s=>s.traits.includes(inc.pref)&&!s.inj))||pick(tm);const others=tm.filter(s=>s.id!==a.id);const b=others.length?pick(others).name:'the client rep';
@@ -1228,7 +1219,7 @@ function finishTrip(){const T=S.trip,t=tripById(T.id),tm=team();T.phase='result'
  S.recordables+=rec;S.revenue+=pay;S.cash+=pay-T.cost;addReport(t,T);
  log(`${t.name}: ${stars}★, data ${data}%, ${rec} recordable${rec===1?'':'s'}, paid ${money(pay)}.`);
  if(rec>=2)mail({from:'Colin',face:'colin',subj:`We need to talk about ${t.name}`,body:'Two recordables on one trip. The client has rung. I have rung. Ring me.'});
- weekTick({team:T.team})}
+ if(!T.noTick)weekTick({team:T.team})}
 function debriefPick(){const T=S.trip,t=tripById(T.id),r=t.result;const ctx=[];
  if(r.rec)ctx.push('inc','inc');if(r.stars>=4)ctx.push('good','good');if(r.stars<=2)ctx.push('bad');if(r.data<70)ctx.push('thin');if(r.short)ctx.push('short');if(r.missed.length)ctx.push('missed');ctx.push('any');
  const c=pick(ctx);const pool=DEBRIEF.map((d,i)=>i).filter(i=>DEBRIEF[i].ctx===c);T.deb=pick(pool);T.phase='debrief';T.debRes=null}
@@ -1263,6 +1254,7 @@ function autoDay(q){const T=S.trip;q=q??crewJudgement();const d=T.day;let guard=
 // ---------- seasons ----------
 function seasonVerdict(){const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
  const revOK=S.revenue>=S.target.rev,safeOK=S.recordables<=S.target.safety,cliOK=happy>=S.target.clients;const met=[revOK,safeOK,cliOK].filter(Boolean).length;
+ if(S.rank===4){const b=S.board,pass=b>=45&&S.cash-(S.loan||0)>=-100000;return {pass,title:b>=75?'THE BOARD IS DELIGHTED':pass?'THE BOARD IS SATISFIED':b>=30&&!(S.probs>=1)?'ON NOTICE':'REMOVED BY THE BOARD',happy,revOK,safeOK,cliOK,sacked:!pass&&!(b>=30&&!(S.probs>=1))}}
  const pass=met===3&&S.cash>=-20000;const title=pass?(S.board>=85?'MANAGER OF THE YEAR':'CONTRACT EXTENDED'):(met>=2&&S.board>=40&&!(S.probs>=1)?'PROBATION':'SACKED');
  return {pass,title,happy,revOK,safeOK,cliOK,sacked:title==='SACKED'}}
 function testimonialDue(){const r=staff('rusty');return r&&(r.age>=55||r.apps>=14)}
@@ -1278,15 +1270,15 @@ function newSeason(){const v=seasonVerdict();if(S.rank>=3)S.probs=v.pass?0:(S.pr
   if(s.age<=27){const k=pick(['field','admin','rel','fit']);bumpStat(s,k,(s.traits.includes('keen')?2:1)+(F('grad')?1:0));notes.push(`${s.name} has come on: ${k} up.`)}
   if(s.id!=='rusty'&&((s.age>=58&&R()<.35)||(s.age>=61&&R()<.75))){removeStaff(s.id,'retired.');notes.push(`${s.name} has retired.`)}});
  Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=Math.round(S.clientRep[c]*.85+60*.15));
- (S.reports||[]).forEach(r=>{if(!r.delivered)r.due-=SEASON_WEEKS});S.tenders=[];S.trips=genSeasonTrips(isDept()?DEPTS[S.dept].types:null);if(S.rank>=3||isDept())S.trips=tenderise(S.trips);if(isDept())S.deptWins=S.deptWins||0;S.inbox=S.inbox.slice(0,10);refreshMarket();if(F('grad'))S.market.unshift(genApplicant('Graduate Ecologist'));
+ (S.reports||[]).forEach(r=>{if(!r.delivered)r.due-=SEASON_WEEKS});S.tenders=[];S.trips=genSeasonTrips(isDept()?DEPTS[S.dept].types:null);if(S.rank>=3||isDept())S.trips=tenderise(S.trips);if(isDept())S.deptWins=S.deptWins||0;if(S.rank===4)dirSeason();S.inbox=S.inbox.slice(0,10);refreshMarket();if(F('grad'))S.market.unshift(genApplicant('Graduate Ecologist'));
  mail({from:'Colin',face:'colin',subj:`Season ${S.season}`,body:`New season. The board want ${money(S.target.rev)}, no more than ${S.target.safety} recordables, and ${S.target.clients} clients happy. ${notes.join(' ')}`});
  log(`Season ${S.season} begins.`)}
 function genSeasonTrips(types){const out=[];let wk=2;const kinds=types?TRIP_GEN.kinds.filter(k=>types.includes(k.type)):TRIP_GEN.kinds;
- while(wk<=43){const pl=pick(TRIP_GEN.places),k=pick(kinds);const days=rint(...k.days);
+ while(wk<=43){const pl=pick(placesNow()),k=pick(kinds);const days=rint(...k.days);
   out.push(mkTrip({wk,client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days,need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]}));
   wk+=rint(3,4)}
- const extra=(S.strat&&S.strat.karratha?1:0)+(S.strat&&S.strat.othermob?2:0);
- for(let i=0;i<extra;i++){const pl=i===0&&S.strat.karratha?TRIP_GEN.places[0]:pick(TRIP_GEN.places),k=pick(TRIP_GEN.kinds);out.push(mkTrip({wk:rint(3,43),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]}))}
+ const kar=S.strat&&S.strat.karratha?2:0,nt=S.strat&&S.strat.nt?2:0,extra=kar+nt+(S.strat&&S.strat.othermob?3:0);
+ for(let i=0;i<extra;i++){const pl=i<kar?TRIP_GEN.places[i%2]:i<kar+nt?NT_PLACES[i%2]:pick(placesNow()),k=pick(TRIP_GEN.kinds);out.push(mkTrip({wk:rint(3,43),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]}))}
  out.sort((a,b)=>a.wk-b.wk);return out}
 
 function blockedInbox(id){return ((id==='ute'||id==='utefix')&&F('fleet')>=1)||(id==='mango'&&F('hse'))||(id==='audit'&&F('hse'))||(id==='cyclone'&&F('insure'))}
@@ -1538,9 +1530,9 @@ const RANKS=[
  {n:'General Manager',boss:'The Board',bossRole:'via Colin, Head Office',face:'colin',review:'season',
   intro:"I'm stepping back to head office. You've got the lot: staff, contracts, hiring, firing through HR, facilities, and the board's targets. You also have to win the work now: most jobs go to tender. Every job has a PO and a budget, and every report has a deadline. Start-up budget is $80,000. Don't spend it on a coffee machine. Or do. It's your office."},
  {n:'Director',boss:'The Chair',bossRole:'Board',face:'chair',review:'season',
-  intro:"Congratulations, Director. You still run the place, and now you can grow it: a Pilbara depot, an acquisition, a Seed division. Two seasons. The board will judge you on what the company is worth when you hand it over."},
+  intro:"Congratulations, Director. You don't run the trips any more. First job: appoint a General Manager. Then it's the board meetings, the money and the big moves: a Pilbara depot, an acquisition, a new market. Two seasons. The board will judge you on how much you grow what the company is worth."},
 ];
-const RANK_VIEWS=[['office','squad','season','inbox'],['office','squad','season','inbox'],['office','squad','season','inbox','safety','train','facilities'],['office','squad','season','tenders','inbox','train','recruit','facilities','board'],['office','squad','season','tenders','inbox','train','recruit','facilities','strategy','board']];
+const RANK_VIEWS=[['office','squad','season','inbox'],['office','squad','season','inbox'],['office','squad','season','inbox','safety','train','facilities'],['office','squad','season','tenders','inbox','train','recruit','facilities','board'],['office','ops','squad','season','tenders','inbox','recruit','facilities','strategy','board']];
 function isHSE(){return S.rank===2&&S.branch!=='dept'}
 function isDept(){return S.rank===2&&S.branch==='dept'}
 const DEPTS={fauna:{n:'Fauna',types:['fauna','bats','subs'],d:'Trapping, bats, subterranean fauna.'},botany:{n:'Botany',types:['flora'],d:'Flora surveys, weeds, rehab monitoring.'},seed:{n:'Seed & Coastal',types:['seed','marine'],d:'Seed collection, turtles, shorebirds.'}};
@@ -1555,7 +1547,7 @@ function spend(n){if(isHSE())S.budget-=n;else S.cash-=n}
 function careerWeekly(){if(S.rank>=3)return;
  S.staff.forEach(s=>{if(!s.temp&&s.contract<=6)s.contract+=52});
  if(S.staff.filter(s=>!s.temp).length<8&&S.market.length){const a=S.market.slice().sort((x,y)=>(y.cv.field+y.cv.rel)-(x.cv.field+x.cv.rel))[0];hire(a.id);S.cash+=a.wage*2;mail({from:'Head Office',face:'colin',subj:'New starter',body:`${a.name} starts Monday as ${a.role}.`})}
- if(S.strat&&S.strat.seed){S.revenue+=4000;S.desk+=4000;S.cash+=4000}}
+ }
 function autoPickTeam(t){const need=t.need.field+t.need.admin;return S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>(b.field+b.fit*.3+b.cond/10)-(a.field+a.fit*.3+a.cond/10)).slice(0,need).map(s=>s.id)}
 
 // Office Admin: chase each team member's paperwork. One chase costs a day.
@@ -1583,7 +1575,7 @@ function careerTripDone(t){const r=t.result;if(!r||r.cancelled)return;S.rankTrip
 function promote(branch,dept){const from=S.rank;S.rank++;if(S.rank===2){S.branch=branch||'hse';S.dept=dept||null}S.board=S.rank>=3?60:50;S.rankTrips=0;S.rankRec=0;S.retries=0;S.career.push({rank:S.rank,at:`S${S.season} W${S.week}`});
  if(isHSE())S.budget=60000;
  if(S.rank===3){S.cash=80000;S.passes=0;S.tenders=S.tenders||[];S.trips.filter(t=>!t.result&&t.wk>S.week+6).forEach((t,i)=>{if(i%2===0){S.trips=S.trips.filter(x=>x!==t);S.tenders.push(toTender(t))}})}
- if(S.rank===4)S.dirSeasons=0;
+ if(S.rank===4){S.dirSeasons=0;S.gm=null;S.gmCands=null;S.needGM=true;S.dirStart=companyValue()}
  if(isDept()){S.deptWins=0;const types=DEPTS[S.dept].types;S.trips=S.trips.filter(t=>t.result||(types.includes(t.type)&&t.wk>S.week));S.tenders=[];
   const extra=genSeasonTrips(types).filter(t=>t.wk>S.week+4);S.tenders=extra.map(toTender)}
  mail({from:rank().boss,face:rank().face,subj:`You're the ${rank().n}`,body:rank().intro});log(`Promoted to ${rank().n}.`)}
@@ -1592,19 +1584,33 @@ function reviewOutcome(){const b=S.board;if(b<30)return 'sack';if(isDept()&&(S.d
 
 // ---------- Director: strategy ----------
 const STRAT=[
- {id:'karratha',n:'Karratha depot',cost:200000,up:1800,d:'Pilbara trips cost 25% less, and one extra Pilbara job each season.'},
- {id:'othermob',n:'Buy out The Other Mob',cost:350000,up:0,d:'Three of their people join you. Every client +10. Two more jobs each season.'},
- {id:'seed',n:'Seed division',cost:120000,up:900,d:'$4,000 a week in seed revenue. Craig finally stops being on loan.'},
+ {id:'karratha',n:'Karratha depot',cost:200000,up:900,d:'A second crew in the field at once. Pilbara trips cost 25% less. Two extra Pilbara jobs each season.'},
+ {id:'othermob',n:'Buy out The Other Mob',cost:350000,up:0,d:'Three of their people and another crew. Every client +10. Three more jobs each season. What else comes with them is a question for due diligence.'},
+ {id:'nt',n:'Open a Northern Territory office',cost:180000,up:1200,d:'A new client, Top End Gas, and another crew. Two extra NT jobs a season on top of NT tenders. They start at 50%: you have to earn them.'},
+ {id:'seed',n:'Seed division',cost:120000,up:900,d:'$3,000 a week in seed revenue. Craig finally stops being on loan.'},
+ {id:'building',n:'Buy the office building',cost:280000,up:-1500,d:'No more rent: $1,500 a week back. Counts at full value.'},
 ];
-function buyStrat(id){const x=STRAT.find(s=>s.id===id);if(!x||S.strat[id])return '';if(S.board<60)return `The board want confidence above 60% before a ${money(x.cost)} move.`;
- S.cash-=x.cost;S.strat[id]=true;log(`${x.n}: done.`);
- if(id==='othermob'){for(let i=0;i<3;i++){const a=genApplicant(pick(['Ecologist','Field Tech','Ecologist','Botanist']));a.traits=['ex-competitor'].concat(a.traits.slice(0,1));S.market.push(a);hire(a.id);S.cash+=a.wage*2}Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=clamp(S.clientRep[c]+10))}
+function otherPrice(){return 350000-(S.dd&&S.dd.seen&&S.dd.i>=0?DD_LIAB[S.dd.i].cut:0)}
+function dueDiligence(){if(S.dd||S.strat.othermob)return '';if(S.cash<20000)return 'Due diligence costs $20,000. You do not have $20,000.';S.cash-=20000;
+ const i=R()<.5?rint(0,DD_LIAB.length-1):-1;S.dd={i,seen:true};log('Due diligence on The Other Mob.');
+ return i>=0?`The accountants found something. ${DD_LIAB[i].t} The price drops to ${money(otherPrice())}, but you inherit it.`:'Clean. Nothing hiding in the filing cabinets. Price stays at $350,000.'}
+function buyStrat(id){const x=STRAT.find(s=>s.id===id);if(!x||S.strat[id])return '';const cost=id==='othermob'?otherPrice():x.cost;
+ if(S.board<60)return `The board want confidence above 60% before a ${money(cost)} move.`;
+ if(S.cash<cost*.5)return `The bank will lend half. You need ${money(cost*.5)} in cash first.`;
+ let loan=0;if(S.cash<cost){loan=Math.ceil((cost-S.cash)/10000)*10000;S.loan=(S.loan||0)+loan;S.cash+=loan}
+ S.cash-=cost;S.strat[id]=true;log(`${x.n}: done.${loan?` Borrowed ${money(loan)}.`:''}`);
+ if(id==='othermob'){for(let i=0;i<3;i++){const a=genApplicant(pick(['Ecologist','Field Tech','Ecologist','Botanist']));a.traits=['ex-competitor'].concat(a.traits.slice(0,1));S.market.push(a);hire(a.id);S.cash+=a.wage*2}Object.keys(S.clientRep).forEach(c=>S.clientRep[c]=clamp(S.clientRep[c]+10));
+  if(S.dd&&S.dd.seen){if(S.dd.i>=0)ddHit(S.dd.i)}else{const i=R()<.5?rint(0,DD_LIAB.length-1):-1;S.dd={i,blind:true,bomb:i>=0?absWeek()+rint(4,10):0}}}
+ if(id==='karratha')addJobsNow(TRIP_GEN.places.slice(0,2),1);
+ if(id==='othermob')addJobsNow(placesNow(),2);
  if(id==='seed'){const c=staff('craig');if(c)c.traits=c.traits.filter(t=>t!=='on-loan-from-seed')}
- return `${x.n}: done.`}
+ if(id==='nt'){S.clientRep.nt=50;if(S.week+9<=44)for(let i=0;i<2;i++){const t=genJob(pick(NT_PLACES),rint(S.week+9,44));(S.tenders=S.tenders||[]).push(toTender(t))}}
+ return `${x.n}: done.${loan?` The bank lent ${money(loan)}.`:''}`}
+function repayLoan(){if(!S.loan||S.cash<50000)return;const x=Math.min(50000,S.loan);S.cash-=x;S.loan-=x;log(`Repaid ${money(x)} of the loan.`)}
 function stratUpkeep(){return STRAT.reduce((a,x)=>a+(S.strat[x.id]?x.up:0),0)}
 function companyValue(){const fac=FAC.reduce((a,f)=>{let v=0;for(let l=1;l<=F(f.id);l++)v+=f.cost[l];return a+v*.6},0);
- const st=STRAT.reduce((a,x)=>a+(S.strat[x.id]?x.cost*.8:0),0);
- return Math.round(S.cash+fac+st+avg(Object.values(S.clientRep))*4000+S.staff.filter(s=>!s.temp).length*15000+(S.lastRevenue||0)*.4)}
+ const st=STRAT.reduce((a,x)=>a+(S.strat[x.id]?x.cost*(x.v??1):0),0);
+ return Math.round(S.cash-(S.loan||0)+fac+st+avg(Object.values(S.clientRep))*4000+S.staff.filter(s=>!s.temp).length*15000+(S.lastRevenue||0)*.6)}
 
 // =====================================================================
 // WINNING & DELIVERING WORK — tenders, POs and budgets, variations, reports
@@ -1620,13 +1626,13 @@ const METHODS=[{id:'rapid',l:'Rapid assessment',dd:-1,base:45,d:'One day less. C
 const REP_TIERS=[{min:0,n:'On notice',d:"Left off some RFQs. Rivals get the benefit of the doubt."},{min:40,n:'Supplier',d:'Normal tendering.'},{min:65,n:'Trusted',d:'They hint at their budget.'},{min:78,n:'Preferred supplier',d:'Some jobs come as direct awards, no competition.'},{min:90,n:'Partner',d:'More direct awards. Rivals score lower against you.'}];
 function repTier(c){const v=S.clientRep[c];return REP_TIERS.filter(t=>v>=t.min).pop()}
 const RIVALS=['The Other Mob','Big Consultancy Pty Ltd','a one-person outfit from Broome','an East Coast firm with a Perth office'];
-function freeWeek(pref){let wk=Math.max(S.week+3,Math.min(SEASON_WEEKS-2,pref));const busy=w=>S.trips.some(t=>!t.result&&Math.abs(t.wk-w)<2);
+function freeWeek(pref){let wk=Math.max(S.week+3,Math.min(SEASON_WEEKS-2,pref));const busy=w=>S.trips.filter(t=>!t.result&&Math.abs(t.wk-w)<2).length>=crews();
  for(let d=0;d<20;d++){for(const w of [wk+d,wk-d]){if(w>S.week+2&&w<=SEASON_WEEKS-2&&!busy(w))return w}}return null}
 function toTender(t){return {id:'td'+(++S.tripSeq),trip:{...t,result:null},opens:Math.max(S.week,t.wk-7),closes:Math.max(S.week+2,t.wk-3),req:pick(Object.keys(REQS)),
  comp:Math.round(t.val*(.88+R()*.24)),rivals:[0,1].map(()=>({name:pick(RIVALS),score:Math.round(61+R()*16)})),prop:null,sent:false}}
 function tenderise(trips){const keep=[],tenders=[];trips.forEach((t,i)=>{if(i%2===0)keep.push(t);else tenders.push(toTender(t))});
  const kinds=isDept()?TRIP_GEN.kinds.filter(k=>DEPTS[S.dept].types.includes(k.type)):TRIP_GEN.kinds;
- for(let i=0;i<5;i++){const pl=pick(TRIP_GEN.places),k=pick(kinds);const t=mkTrip({wk:rint(8,42),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]});tenders.push(toTender(t))}
+ for(let i=0;i<5+2*(crews()-1);i++){const pl=pick(placesNow()),k=pick(kinds);const t=mkTrip({wk:rint(8,42),client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]});tenders.push(toTender(t))}
  S.tenders=tenders.sort((a,b)=>a.closes-b.closes);return keep}
 function newProp(td){const n=td.trip.need.field+td.trip.need.admin;return {team:[],lead:'',method:'standard',writer:'',plan:false,fast:false,price:'market',lunch:false,call:false}}
 function propDays(td,p){return Math.max(2,td.trip.days+METHODS.find(m=>m.id===p.method).dd)}
@@ -1672,21 +1678,21 @@ function propIssues(td,p){const t=td.trip,wt=WEIGHTS[t.client],lead=staff(p.lead
 
 function tenderWeekly(){if(!S.tenders)return;
  S.tenders.filter(td=>!td.announced&&td.opens<=S.week+1&&!td.done).forEach(td=>{td.announced=true;const t=td.trip,rep=S.clientRep[t.client];
-  if(rep<40&&R()<.5){td.done=true;mail({from:CLIENTS[t.client],face:'client',subj:`Not invited: ${t.name}`,body:"We've gone to our usual suppliers for this one."});log(`Not invited to tender: ${t.name}.`);return}
-  if((rep>=90&&R()<.4)||(rep>=78&&R()<.2)){td.direct=true;mail({from:CLIENTS[t.client],face:'client',subj:`Direct award: ${t.name}`,body:`No tender this time. We'd like you to do it. Send a team and a price by week ${td.closes}.`,opts:[{l:'Open it',e:{goto:td.id,out:'Opened.'}}]});return}
-  mail({from:CLIENTS[t.client],face:'client',subj:`Request for quote: ${t.name}`,body:`${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Closes week ${td.closes}. Requirement: ${REQS[td.req]}. Put a proposal together on the Tenders screen.`,opts:[{l:'Open the RFQ',e:{goto:td.id,out:'Opened.'}}]})});
+  if(rep<40&&R()<.5){td.done=true;tmail({from:CLIENTS[t.client],face:'client',subj:`Not invited: ${t.name}`,body:"We've gone to our usual suppliers for this one."});log(`Not invited to tender: ${t.name}.`);return}
+  if((rep>=90&&R()<.4)||(rep>=78&&R()<.2)){td.direct=true;tmail({from:CLIENTS[t.client],face:'client',subj:`Direct award: ${t.name}`,body:`No tender this time. We'd like you to do it. Send a team and a price by week ${td.closes}.`,opts:[{l:'Open it',e:{goto:td.id,out:'Opened.'}}]});return}
+  tmail({from:CLIENTS[t.client],face:'client',subj:`Request for quote: ${t.name}`,body:`${t.days} days, ${t.need.field} field and ${t.need.admin} admin. Closes week ${td.closes}. Requirement: ${REQS[td.req]}. Put a proposal together on the Tenders screen.`,opts:[{l:'Open the RFQ',e:{goto:td.id,out:'Opened.'}}]})});
  S.tenders.filter(td=>td.writer&&td.writer!=='me'&&!td.sent&&!td.readyMailed&&S.week>=td.draftWk&&!td.done).forEach(td=>{td.readyMailed=true;const ws=staff(td.writer);
-  mail({from:ws?ws.name:'Writer',face:ws?ws.face:'colin',subj:`Draft for review: ${td.trip.name}`,body:`Draft's done. Closes week ${td.closes}. ${propIssues(td,td.prop).length?`It has ${propIssues(td,td.prop).length} thing${propIssues(td,td.prop).length>1?'s':''} you'll want to look at.`:'Looks clean.'}`,opts:[{l:'Review it',e:{goto:td.id,out:'Opened.'}}]})});
+  tmail({from:ws?ws.name:'Writer',face:ws?ws.face:'colin',subj:`Draft for review: ${td.trip.name}`,body:`Draft's done. Closes week ${td.closes}. ${propIssues(td,td.prop).length?`It has ${propIssues(td,td.prop).length} thing${propIssues(td,td.prop).length>1?'s':''} you'll want to look at.`:'Looks clean.'}`,opts:[{l:'Review it',e:{goto:td.id,out:'Opened.'}}]})});
  S.tenders.filter(td=>!td.done&&td.closes<=S.week).forEach(td=>{td.done=true;const t=td.trip,c=CLIENTS[t.client];
   if(!td.sent&&td.prop&&td.writer&&td.writer!=='me'&&S.week>=td.draftWk){td.sent=true;const ws=staff(td.writer);log(`Nobody reviewed ${t.name}. ${ws?ws.name:'The writer'} sent the draft as is.`)}
   if(!td.sent){log(`No proposal: ${t.name}.`);if(isDept())S.board=clamp(S.board-3);return}
   const p=td.prop,mine=propTotal(td,p),s=propScores(td,p),best=td.rivals.slice().sort((a,b)=>b.score-a.score)[0];
   const rep=S.clientRep[t.client],rivalBoost=rep<40?5:rep>=90?-3:0;const win=td.direct?(mine>=40&&p.price!=='premium'||mine>=50):mine>best.score+rivalBoost;
   const card=td.direct?(win?'Direct award confirmed.':'Direct award withdrawn: they found the price hard to justify.'):`Your score ${mine} (price ${s.price}, methodology ${s.method}, team ${s.team}, safety ${s.safety}). ${win?`Next best: ${best.name} on ${best.score+rivalBoost}.`:`Winner: ${best.name} on ${best.score+rivalBoost}.`}`;
-  if(win){const wk=freeWeek(t.wk);if(wk==null){mail({from:c,face:'client',subj:`Won, but: ${t.name}`,body:`${card} But your calendar is full and you had to hand it back.`});S.clientRep[t.client]=clamp(S.clientRep[t.client]-5);return}
+  if(win){const wk=freeWeek(t.wk);if(wk==null){tmail({from:c,face:'client',subj:`Won, but: ${t.name}`,body:`${card} But your calendar is full and you had to hand it back.`});S.clientRep[t.client]=clamp(S.clientRep[t.client]-5);return}
    t.wk=wk;t.days=propDays(td,p);t.val=propPrice(td,p);t.won=true;t.prop={team:p.team.slice(),lead:p.lead};t.fast=p.fast;S.trips.push(t);if(isDept()){S.deptWins=(S.deptWins||0)+1;S.board=clamp(S.board+4)}S.trips.sort((a,b)=>a.wk-b.wk);
-   mail({from:c,face:'client',subj:`Successful: ${t.name}`,body:`${card} PO for ${money(t.val)}. Mobilise week ${wk}, ${t.days} days. Cost budget ${money(estCost(t))}.${p.lead?` They expect ${staff(p.lead)?staff(p.lead).name:'your named lead'} to lead it.`:''}`});log(`Won: ${t.name} (${money(t.val)}).`)}
-  else{if(isDept())S.board=clamp(S.board-1);mail({from:c,face:'client',subj:`Unsuccessful: ${t.name}`,body:card});log(`Lost: ${t.name} to ${best.name}.`)}})}
+   tmail({from:c,face:'client',subj:`Successful: ${t.name}`,body:`${card} PO for ${money(t.val)}. Mobilise week ${wk}, ${t.days} days. Cost budget ${money(estCost(t))}.${p.lead?` They expect ${staff(p.lead)?staff(p.lead).name:'your named lead'} to lead it.`:''}`});log(`Won: ${t.name} (${money(t.val)}).`)}
+  else{if(isDept())S.board=clamp(S.board-1);tmail({from:c,face:'client',subj:`Unsuccessful: ${t.name}`,body:card});log(`Lost: ${t.name} to ${best.name}.`)}})}
 // ---------- budget & variations ----------
 // Client-side causes make a variation easier to land.
 const CLIENT_CAUSE=['lostrep','fireban','threat','dust','nojha'];
@@ -1709,7 +1715,7 @@ function reportWeekly(onTrip){const open=(S.reports||[]).filter(r=>!r.delivered)
  open.sort((a,b)=>a.due-b.due).forEach(r=>{const use=Math.min(cap,r.work-r.done);r.done+=use;cap-=use;
   if(r.done>=r.work)deliverReport(r,false);
   else if(S.week>r.due){r.late++;S.clientRep[r.client]=clamp(S.clientRep[r.client]-3);
-   if(r.late===1)mail({from:CLIENTS[r.client],face:'client',subj:`Where's our report? (${r.name})`,body:`It was due week ${r.due}. They'd like it.`,
+   if(r.late===1&&S.rank===4&&S.gm)news(`${r.name} report late. ${reportAction({tid:r.tid,act:'ext'})}`);else if(r.late===1)mail({from:CLIENTS[r.client],face:'client',subj:`Where's our report? (${r.name})`,body:`It was due week ${r.due}. They'd like it.`,
     opts:[{l:'Ask for a two-week extension',e:{rpt:{tid:r.tid,act:'ext'}}},{l:'Lunch, then ask ($300)',e:{cash:-300,rpt:{tid:r.tid,act:'schmooze'}}},{l:'Crunch: office on it this week',e:{rpt:{tid:r.tid,act:'crunch'}}},{l:'Send the draft as is',e:{rpt:{tid:r.tid,act:'draft'}}}]});
    if(r.late>=5){r.ret=0;S.clientRep[r.client]=clamp(S.clientRep[r.client]-8);deliverReport(r,true);mail({from:CLIENTS[r.client],face:'client',subj:`${r.name}: retention withheld`,body:"Five weeks late. We're keeping the retention."})}}});
  S.crunch=false;return total?Math.min(1,(total-cap)/total):0}
@@ -1799,6 +1805,217 @@ INBOX.push(
 );
 
 // =====================================================================
+// DIRECTOR — appoint a GM, quarterly board meetings, bigger moves,
+// judged on how much you grow the company
+// =====================================================================
+
+// ---------- a new market (Director only) ----------
+CLIENTS.nt='Top End Gas';
+WEIGHTS.nt={price:30,method:30,team:25,safety:15};
+CLIENT_REQ.nt={note:'Remote NT sites. Charter flights and camp rooms only.',must:{fly:['charter'],bed:['camp']}};
+const NT_PLACES=[['Top End','nt',3],['Barkly Tableland','nt',2]];
+// Crews that can be in the field at once. More than one needs a GM and a second base.
+function crews(){return S&&S.strat?1+(S.strat.karratha?1:0)+(S.strat.othermob?1:0)+(S.strat.nt?1:0):1}
+function placesNow(){return S&&S.strat&&S.strat.nt?TRIP_GEN.places.concat(NT_PLACES,NT_PLACES):TRIP_GEN.places}
+function genJob(pl,wk){const k=pick(TRIP_GEN.kinds);return mkTrip({wk,client:pl[1],name:`${pick(k.names)}, ${pl[0]}`,type:k.type,days:rint(...k.days),need:{field:rint(...k.field),admin:rint(...k.admin)},hazard:pl[2]})}
+
+// ---------- the GM ----------
+FACES.gm_grant=['............','...nnnnnn...','..nnnnnnnn..','..ssssssss..','..sksssskss.','..ssssssss..','..ssssssss..','...srrrrs...','....ssss....','..kkwwwwkk..','.kkkkwwkkkk.','.kkk.kk.kkk.'];
+FACES.gm_sharon=['..eeeeeeee..','.eeeeeeeeee.','.eessssssee.','.eskssssksee','.eessssssee.','..ssssssss..','..ssrrrrss..','...ssssss...','....ssss....','..oooooooo..','.oooowwoooo.','.ooo.oo.ooo.'];
+FACES.gm_priya=['...kkkkkk...','..kkkkkkkk..','.kkssssssk..','.ksksssskkk.','.kkssssssk..','.kkssssssk..','..ssrrrrss..','...ssssss...','....ssss....','..rrrrrrrr..','.rrrrwwrrrr.','.rrr.rr.rrr.'];
+FACES.gm_wayne=['............','............','..ssssssss..','..ssssssss..','..sksssskss.','..ssssssss..','..nnnnnnnn..','..nnrrrrnn..','...nnnnnn...','..gggggggg..','.ggggwwgggg.','.ggg.gg.ggg.'];
+const GM_EXT=[
+ {k:'grant',name:'Grant Pemberton',p:'he',face:'gm_grant',from:'Big Consultancy Pty Ltd',st:{ops:11,sales:17,safety:9,people:7},wage:3200,quirk:'Wins work. Says "circle back". The field team call him The Deck.'},
+ {k:'sharon',name:'Sharon Kowalski',p:'she',face:'gm_sharon',from:'a Pilbara iron ore mine',st:{ops:16,sales:9,safety:17,people:10},wage:3000,quirk:'Ran a mine site of 400 people. Tight ship. Clients are slightly scared of her.'},
+ {k:'priya',name:'Priya Natarajan',p:'she',face:'gm_priya',from:'an East Coast consultancy',st:{ops:14,sales:14,safety:13,people:14},wage:3400,quirk:'Good at everything. Knows it. Will want equity within the year.'},
+ {k:'wayne',name:'Wayne Dobson',p:'he',face:'gm_wayne',from:'The Other Mob',st:{ops:13,sales:13,safety:10,people:12},wage:2700,quirk:'Knows every client and every rival. Loyalty: to be confirmed.'},
+];
+const GM_LINES={
+ grant:["Let's take the Spinifex thing offline.","I've socialised the new rates with the clients. They're sitting with it.","We should workshop the trap line. Metaphorically."],
+ sharon:["Two people turned up without steel caps. They won't do that again.","Pre-starts are now eleven minutes. Not twelve.","I've audited the ute logbooks. We need to talk about Ute 3."],
+ priya:["All reports out on time. You're welcome.","I've fixed the tender template. It was bad.","We should talk about my equity. Not today. Soon."],
+ wayne:["Had a beer with the Spinifex site manager. We're fine.","The Other Mob are pricing sharp this quarter. I know because I used to set their prices.","Rusty says hello. Rusty says a lot of things."],
+ int:["The crew are good. Dazza misses me in the field. Nobody else says so.","Still finding my feet. The chair is very comfortable.","I know which ute is Ute 3. That helps more than you'd think."],
+};
+function gmCands(){const past=S.gmPast||[];const pool=GM_EXT.filter(g=>!past.includes(g.name)).sort(()=>R()-.5).slice(0,2);
+ const out=pool.map(g=>{const st={};Object.keys(g.st).forEach(k=>st[k]=clamp(g.st[k]+rint(-2,2),1,20));return {k:g.k,name:g.name,p:g.p,face:g.face,from:g.from,...st,wage:g.wage+rint(-2,2)*100,quirk:g.quirk}});
+ const s=S.staff.filter(x=>!x.temp&&!past.includes(x.name)).sort((a,b)=>(b.admin+b.rel+b.field*.5)-(a.admin+a.rel+a.field*.5))[0];
+ if(s)out.unshift({k:'int',sid:s.id,name:s.name,p:s.p,face:s.face,from:`inside: ${s.role}`,ops:clamp(Math.round((s.admin+s.rel)*.35+3),1,15),sales:clamp(Math.round(s.admin*.35+2),1,11),safety:clamp(Math.round(s.rel*.5+s.field*.2+3),1,15),people:16,wage:Math.max(2300,s.wage+600),quirk:`Knows everyone and every trap line. Has never sold anything. Promoting ${P(s).him} leaves a hole in the team.`});
+ return out}
+function appointGM(i){S.needGM=false;
+ if(i==='self'){S.gm=null;S.acting=true;S.gmCands=null;log('No GM appointed. You are acting GM.');return}
+ const c=S.gmCands[+i];if(!c)return;S.acting=false;S.gm={...c,since:absWeek(),loyal:60};S.gmCands=null;
+ if(c.sid){removeStaff(c.sid,'moved up to General Manager.');S.staff.forEach(s=>bumpStat(s,'morale',6))}else if(c.people<10)S.staff.forEach(s=>bumpStat(s,'morale',-3));
+ mail({from:c.name,face:'gm',subj:'Starting Monday',body:`${c.quirk} I'll run the crews, the tenders and the hiring. You'll get a report every four weeks. If you want to run a trip yourself, flag it on the Operations screen.`});log(`${c.name} appointed General Manager.`)}
+function gmQ(){return S.gm?clamp(.4+S.gm.ops/30,.4,.97):crewJudgement()}
+function gmSafe(){return S.rank===4&&S.gm?1.25-S.gm.safety/40:1}
+function news(t){(S.gmNews=S.gmNews||[]).push(t)}
+function tmail(m){if(S.rank===4&&S.gm){news(m.subj+'.');return}mail(m)}
+
+// The GM runs a trip off-screen. No week passes here; the caller ticks once for all crews.
+function gmRunTrip(t){const ids=autoPickTeam(t);
+ if(!ids.length){t.wk=S.week+1;news(`${t.name}: nobody free, pushed a week.`);return []}
+ const scr=S.screen,view=S.view;beginTrip(t,ids);const T=S.trip;T.noTick=true;const q=gmQ();
+ autoMob(q);fly();let g=0;
+ while(T.phase==='field'&&g++<500){if(T.ev){resolveEv(autoChoice(q));closeEv();continue}
+  const open=dayJobsOpen();if(open.length){const c=team().filter(canWork).sort((a,b)=>fieldChance(b)-fieldChance(a))[0];if(!c){endDay();continue}fieldAssign(open[0].j,c.id);continue}
+  endDay()}
+ if(t.result&&variationDue(t,T)&&T.varRes==null)variation(S.gm.sales>=12?2:1);
+ S.trip=null;S.screen=scr;S.view=view;if(!t.result)return ids;careerTripDone(t);S.screen=scr;
+ const r=t.result;news(`${t.name}: ${r.stars}★, ${r.rec} recordable${r.rec===1?'':'s'}, cost ${money(r.cost)} on a ${money(estCost(t))} budget.${T.varOut?' '+T.varOut:''}`);
+ ids.forEach(id=>{if(!S.busy.includes(id))S.busy.push(id)});return ids}
+
+// The GM writes and submits tenders nobody else has picked up.
+function gmPolish(td){const p=td.prop,t=td.trip,wt=WEIGHTS[t.client],fix=()=>R()<.3+S.gm.sales/30,need=t.need.field+t.need.admin;
+ if(p.team.length<need&&fix()){S.staff.filter(s=>!s.temp&&!p.team.includes(s.id)).sort((a,b)=>b.field-a.field).slice(0,need-p.team.length).forEach(s=>p.team.push(s.id))}
+ if(!p.lead&&fix())p.lead=(p.team.map(staff).filter(Boolean).sort((a,b)=>b.field-a.field)[0]||{}).id||'';
+ if(td.req==='fast'&&!p.fast&&fix())p.fast=true;
+ if(td.req==='senior'&&!(staff(p.lead)&&staff(p.lead).field>=15)&&fix()){const s=S.staff.filter(x=>!x.temp&&x.field>=15)[0];if(s){if(!p.team.includes(s.id))p.team[p.team.length-1]=s.id;p.lead=s.id}}
+ if(td.req==='local'&&fix()){const s=S.staff.find(x=>!x.temp&&(x.clients||{})[t.client]&&!p.team.includes(x.id));if(s)p.team[p.team.length-1]=s.id}
+ if(wt.safety>=25&&!p.plan&&fix())p.plan=true;
+ if(wt.method>=35&&p.method==='rapid'&&fix())p.method='standard';
+ if(S.gmPrice==='volume')p.price='sharp';else if(S.gmPrice==='margin')p.price=S.clientRep[t.client]>=78?'premium':'market';
+ else if(wt.price>=40&&p.price==='premium'&&fix())p.price='market';
+ if(S.gm.sales>=15&&R()<.5)p.call=true}
+function gmTenders(){(S.tenders||[]).filter(td=>td.announced&&!td.done&&!td.sent).forEach(td=>{
+ if(!td.writer&&td.closes-S.week<=3){const w=S.staff.filter(s=>avail(s)&&!s.temp).sort((a,b)=>b.admin-a.admin)[0];if(!w)return;assignWriter(td.id,w.id);td.q+=Math.round(S.gm.sales/5);td.gm=true;td.readyMailed=true}
+ else if(td.gm&&S.week>=td.draftWk&&td.closes>S.week){gmPolish(td);submitProp(td.id)}})}
+function gmReport(){const g=S.gm,n=S.gmNews||[];S.gmNews=[];
+ mail({from:g.name,face:'gm',subj:`GM report, week ${S.week}`,body:`${n.length?n.join(' '):'Quiet month. Desk work and reports.'} Cash ${money(S.cash)}. Revenue ${money(S.revenue)} of ${money(S.target.rev)}. ${S.recordables} recordable${S.recordables===1?'':'s'}. "${pick(GM_LINES[g.k]||GM_LINES.int)}"`})}
+
+// ---------- the Director's week ----------
+const DD_LIAB=[
+ {t:'An unpaid payroll tax bill from two years ago: $90,000.',cash:-90000,cut:90000},
+ {t:'Two unfair dismissal claims on their way to Fair Work: about $60,000 and some headlines.',cash:-60000,board:-4,cut:60000},
+ {t:"Spinifex Iron have them on a do-not-engage list. Buy them and that list includes you.",rep:['rio',-18],cut:40000},
+ {t:'Their vehicles are leased, not owned, and the leases transfer to you: $45,000 to pay out.',cash:-45000,cut:45000},
+];
+function ddHit(i){const L=DD_LIAB[i];if(L.cash)S.cash+=L.cash;if(L.board)S.board=clamp(S.board+L.board);if(L.rep)S.clientRep[L.rep[0]]=clamp(S.clientRep[L.rep[0]]+L.rep[1]);
+ mail({from:'Deb, HR',face:'deb',subj:'Something from The Other Mob',body:`Found while merging the files. ${L.t}`});log(`Acquisition liability: ${L.t}`)}
+function dirWeekly(){if(S.rank!==4)return;
+ if(S.strat.seed){S.revenue+=3000;S.desk+=3000;S.cash+=3000}
+ if(S.lease)S.cash+=600;
+ if(S.loan)S.cash-=Math.round(S.loan*.0019);
+ if(S.dd&&S.dd.bomb&&absWeek()>=S.dd.bomb){S.dd.bomb=0;ddHit(S.dd.i)}
+ if(S.dflags&&S.dflags.whs&&!S.dflags.whsHit&&S.recordables>=2){S.dflags.whsHit=1;S.board=clamp(S.board-10);mail({from:'The Chair',face:'chair',subj:'The WHS minutes',body:"Two recordables. The regulator has asked for our board minutes on the new WHS laws. They say \"noted\". That's all they say."})}
+ if(!S.gm)return;
+ S.cash-=S.gm.wage;
+ S.gm.loyal=clamp(S.gm.loyal+(S.board>=60?.3:S.board<40?-.5:0));
+ if(S.gm.loyal<30&&R()<.04){mail({from:S.gm.name,face:'gm',subj:'Resignation',body:"I've taken another role. It's not the money. It's partly the money."});S.gmPast=(S.gmPast||[]).concat(S.gm.name);log(`${S.gm.name} resigned as GM.`);S.gm=null;S.needGM=true;return}
+ if(R()<.35){const d=S.gm.people>=13?1:S.gm.people<=8?-1:0;if(d)S.staff.forEach(s=>bumpStat(s,'morale',d))}
+ gmTenders();
+ if(S.staff.filter(s=>!s.temp).length<7+crews()&&S.market.length){const a=S.market.slice().sort((x,y)=>(y.cv.field+y.cv.rel)-(x.cv.field+x.cv.rel))[0];hire(a.id);news(`Hired ${a.name} (${a.role}).`)}
+ if(S.week%4===0)gmReport()}
+// Frameworks and new-season jobs.
+function fwTrips(c,n){const pls=placesNow().filter(p=>p[1]===c);if(!pls.length)return;
+ for(let i=0;i<n;i++){const wk=freeWeek(rint(S.week+4,SEASON_WEEKS-3));if(wk==null)return;const t=genJob(pick(pls),wk);t.val=Math.round(t.val*(1-S.fw[c])/100)*100;t.fw=true;S.trips.push(t)}
+ S.trips.sort((a,b)=>a.wk-b.wk)}
+function dirSeason(){S.target.safety=Math.max(SAFETY_LIMIT,Math.round((S.trips.length+(S.tenders||[]).length/2)/6));Object.keys(S.fw||{}).forEach(c=>{S.trips.filter(t=>!t.result&&t.client===c&&!t.fw).forEach(t=>t.val=Math.round(t.val*(1-S.fw[c])/100)*100);fwTrips(c,2)})}
+
+// One press of "Next week" as Director.
+function dirStep(){
+ if(S.needGM){S.screen='appoint';return}
+ if(meetingDue()){startMeeting();return}
+ if(S.gm){S.gmTeams=S.gmTeams||[];S.trips.filter(t=>!t.result&&t.wk<=S.week&&!t.self).sort((a,b)=>a.wk-b.wk).forEach(t=>S.gmTeams.push(...gmRunTrip(t)))}
+ const t=nextTrip();
+ if(t&&t.wk<=S.week&&(t.self||!S.gm)){S.screen='pick';const pre=t.prop?t.prop.team:((S.lastTeam||{})[t.client]||[]);S.pick=pre.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin);return}
+ weekTick();
+ if(S.board<18&&S.week>10){S.screen='end';S.midSack=true;return}
+ if(S.needGM){S.screen='appoint';return}
+ if(meetingDue()){startMeeting();return}
+ if(S.week>SEASON_WEEKS)S.view='board'}
+// Run weeks until something needs the Director.
+function runOn(){const seen=new Set(S.inbox.filter(m=>m.opts&&!m.done));let n=0;
+ while(n++<SEASON_WEEKS&&S.screen==='game'&&S.week<=SEASON_WEEKS){dirStep();if(S.screen!=='game')break;
+  if(S.inbox.some(m=>m.opts&&!m.done&&!seen.has(m)&&!m.opts.some(o=>o.e&&o.e.goto)))break;
+  if(S.cash<0&&!S.warnedCash){S.warnedCash=true;break}if(S.cash>=0)S.warnedCash=false}}
+
+// ---------- board meetings ----------
+const MEET_WEEKS=[12,23,34,45];
+function meetingDue(){return S.rank===4&&MEET_WEEKS.includes(S.week)&&!(S.meets||{})[S.season+':'+S.week]}
+function nextMeeting(){return MEET_WEEKS.find(w=>w>=S.week&&!(S.meets||{})[S.season+':'+w])}
+const AGENDA=[
+ {id:'sale',cd:999,pri:2,fn(){if((S.dirSeasons||0)<1||S.saleOffered||S.week<20)return null;S.saleOffered=1;const v=companyValue()+(S.divPaid||0);const y=Math.round(v*(.85+R()*.3)/10000)*10000,y2=Math.round(y*1.15/10000)*10000;
+  return {q:`A listed firm wants to buy the company. Their offer is ${money(y)}. Our own estimate of what we're worth, dividends included, is ${money(v)}. If you sell, your career ends here, on that number.`,opts:[
+   {l:`Accept ${money(y)}`,e:{sale:y,out:'Sold. The lawyers are already arguing about the goanna sign.'}},
+   {l:`Counter at ${money(y2)}`,e:{chance:{p:.4,win:{sale:y2,out:'They blinked. Sold.'},lose:{board:-3,out:'They walked. The board wonder whether that was clever.'}}}},
+   {l:'Decline. We can do better ourselves.',e:{board:-1,out:'Declined. Now you have to prove it.'}}]}}},
+ {id:'gmrev',cd:20,pri:1,fn(){if(!S.gm||absWeek()-S.gm.since<10)return null;const done=S.trips.filter(t=>t.result&&!t.result.cancelled);const st=done.length?avg(done.map(t=>t.result.stars)):0;const pace=S.revenue/(S.target.rev*Math.max(.1,S.week/SEASON_WEEKS));const ok=pace>=1&&S.recordables<=S.target.safety;
+  return {q:`The board want your view on ${S.gm.name}. This season: ${done.length} trips at ${st.toFixed(1)}★ on average, revenue at ${Math.round(pace*100)}% of pace, ${S.recordables} recordable${S.recordables===1?'':'s'}.`,opts:[
+   {l:'Back them fully',e:{board:ok?4:-4,gm:{loyal:10},out:ok?'The board agrees.':'The board notes your confidence. They do not share it.'}},
+   {l:'Set clear targets for next quarter',e:{gm:{ops:1,people:-1},board:1,out:'Targets set. Operations tighten up. The office grumbles.'}},
+   {l:'Replace them',e:{gmGo:1,cash:-S.gm.wage*8,board:ok?-5:2,out:`${S.gm.name} is out, with eight weeks' pay. You need a new GM.`}}]}}},
+ {id:'div',cd:11,fn(){if(S.cash<80000)return null;const x=Math.round(S.cash*.3/5000)*5000,h=Math.round(x/2/5000)*5000,plan=Object.keys(S.strat).length>0;
+  return {q:`Cash is ${money(S.cash)}. The shareholders would like some of it.`,opts:[
+   {l:`Pay a dividend of ${money(x)}`,e:{div:x,board:8,out:'Shareholders happy. Dividends count towards your return, but that cash is gone.'}},
+   {l:`Pay half that (${money(h)})`,e:{div:h,board:3,out:'A compromise. Nobody is thrilled.'}},
+   {l:'Keep it all and explain the growth plan',e:{board:plan?2:-5,out:plan?'They like the plan. Reluctantly.':'"What plan?" Fair question.'}}]}}},
+ {id:'fw',cd:20,fn(){const c=Object.keys(S.clientRep).filter(k=>S.clientRep[k]>=60&&!(S.fw||{})[k]).sort(()=>R()-.5)[0];if(!c)return null;const sk=S.gm?S.gm.sales:S.me.write;
+  return {q:`${CLIENTS[c]} want to put us on a three-year panel. Two extra jobs a season, guaranteed, but every job for them at 8% under our rates.`,opts:[
+   {l:'Sign it as offered',e:{fw:{c,disc:.08},rep:[c,4],out:`Signed. Two more ${CLIENTS[c]} jobs this season and every season, all 8% cheaper.`}},
+   {l:`Send ${S.gm?S.gm.name:'yourself'} to negotiate`,e:{chance:{p:clamp(.25+sk/30,.2,.85),win:{fw:{c,disc:.04},out:'Negotiated to 4%. Signed.'},lose:{rep:[c,-4],out:"They didn't like being pushed. Offer withdrawn."}}}},
+   {l:'Decline. We compete on merit.',e:{board:-1,out:'Declined. They filled the panel without us.'}}]}}},
+ {id:'poach',cd:30,fn(){if(!S.gm||absWeek()-S.gm.since<8)return null;const r=pick(RIVALS.slice(0,2)),bump=Math.round(S.gm.wage*.2/100)*100,g=S.gm,pp=P(g);
+  return {q:`${g.name} has had an offer from ${r}. ${pp.He} hasn't said yes. ${pp.He} hasn't said no.`,opts:[
+   {l:`Match it (+${money(bump)} a week)`,e:{gm:{wage:bump,loyal:25},out:`${g.name} stays. It cost you.`}},
+   {l:'Retention bonus tied to targets ($20,000)',e:{cash:-20000,chance:{p:.7,win:{gm:{loyal:12},out:'Signed. Staying, for now.'},lose:{gmGo:1,out:`${g.name} took the bonus and the other job. You need a new GM.`}}}},
+   {l:'Let them go if they want to go',e:{chance:{p:.5,win:{gm:{loyal:-15},out:`${pp.He} stayed. ${pp.He} noticed you didn't fight for ${pp.him}.`},lose:{gmGo:1,out:`${g.name} has resigned. You need a new GM.`}}}}]}}},
+ {id:'whs',cd:999,fn(){return {q:'New WHS laws make directors personally liable for a workplace death. The board want to know what we are doing about it.',opts:[
+   {l:'Commission an external safety review ($25,000)',e:{cash:-25000,safeAll:.85,board:4,out:'Done properly. Every kind of incident is now less likely.'}},
+   {l:`Have ${S.gm?S.gm.name:'the HSE lead'} do it in-house`,e:S.gm&&S.gm.safety>=13?{safeAll:.92,board:2,out:'Solid work. Some things are safer.'}:{out:'A report was written. Nothing changed.'}},
+   {l:'Minute it and move on',e:{board:-2,flagd:'whs',out:'Minuted. If something goes wrong now, those minutes get read out.'}}]}}},
+ {id:'building',cd:999,fn(){if(S.strat.building||S.cash<200000)return null;return {q:'The landlord is selling the office building and has offered it to us first: $280,000.',opts:[
+   {l:'Buy it',e:{strat:'building',out:'Bought. No more rent, and it counts at full value.'}},
+   {l:'Sign a five-year lease at a lower rate',e:{lease:1,out:'Signed. Rent is $600 a week cheaper.'}},
+   {l:'Stay month to month',e:{out:'Nothing changes.'}}]}}},
+ {id:'client',cd:11,fn(){const c=Object.keys(S.clientRep).filter(k=>S.clientRep[k]<50).sort((a,b)=>S.clientRep[a]-S.clientRep[b])[0];if(!c)return null;const sk=S.gm?S.gm.sales:10;
+  return {q:`${CLIENTS[c]} are reviewing their suppliers, and we're on the list to be cut.`,opts:[
+   {l:'Fly up and see their GM yourself ($3,000)',e:{cash:-3000,rep:[c,10],out:'Two hours in a site office and a very long dinner. We are off the list.'}},
+   {l:`Send ${S.gm?S.gm.name:'the account lead'}`,e:{chance:{p:clamp(sk/20,.2,.9),win:{rep:[c,8],out:'Sorted.'},lose:{rep:[c,-6],out:'It went badly. "Noted," they said.'}}}},
+   {l:'Leave it. The work will speak for itself.',e:{rep:[c,-8],out:'The work did not speak loudly enough.'}}]}}},
+ {id:'bonus',cd:20,fn(){const m=avg(S.staff.map(s=>s.morale));if(m>66)return null;const x=Math.round(S.staff.length*2500/1000)*1000;
+  return {q:`Staff morale is ${Math.round(m)}%. The senior staff want a profit-share bonus pool.`,opts:[
+   {l:`Fund a ${money(x)} bonus pool`,e:{cash:-x,morale:10,out:'Morale up. Resignation letters shredded.'}},
+   {l:'Better field gear instead ($8,000)',e:{cash:-8000,morale:4,out:'New gear. Some people are pleased.'}},
+   {l:'Not this year',e:{morale:-5,out:'Noted. By everyone.'}}]}}},
+ {id:'price',cd:40,fn(){if(!S.gm)return null;return {q:`${S.gm.name} wants the board's steer on tender pricing for the rest of the year.`,opts:[
+   {l:'Volume: price sharp, win more',e:{price:'volume',out:'Sharper pricing. More wins, thinner margins.'}},
+   {l:'Margin: premium where they trust us',e:{price:'margin',out:'Premium where we can get it. Fewer wins, better ones.'}},
+   {l:'Leave it to the GM',e:{price:'',out:'Case by case.'}}]}}},
+ {id:'rusty',cd:999,fn(){if(!staff('rusty'))return null;return {q:'Rusty has written to the board. He would like to be on it. The letter is in pencil.',opts:[
+   {l:'Make him a non-executive director',e:{board:-2,morale:6,out:'Board meetings now open with the goanna story.'}},
+   {l:'Make him "Principal Field Advisor" instead',e:{morale:3,out:'He has had cards printed.'}},
+   {l:'Politely decline',e:{morale:-2,out:'He says he understands. He does not.'}}]}}},
+];
+function startMeeting(){S.meets=S.meets||{};S.meets[S.season+':'+S.week]=true;S.agendaSeen=S.agendaSeen||{};const now=absWeek();
+ const pool=AGENDA.filter(a=>!S.agendaSeen[a.id]||now-S.agendaSeen[a.id]>=a.cd).sort(()=>R()-.5).sort((a,b)=>(b.pri||0)-(a.pri||0));const items=[];
+ for(const a of pool){if(items.length>=3)break;const it=a.fn();if(it){S.agendaSeen[a.id]=now;items.push({id:a.id,q:it.q,opts:it.opts,res:null,out:''})}}
+ S.meeting={items,i:0,b0:Math.round(S.board),v0:companyValue()+(S.divPaid||0),wk:S.week};S.screen='meeting'}
+function applyM(e){if(!e)return '';let out=e.out||'';
+ if(e.cash)S.cash+=e.cash;if(e.board)S.board=clamp(S.board+e.board);
+ if(e.rep)S.clientRep[e.rep[0]]=clamp(S.clientRep[e.rep[0]]+e.rep[1]);
+ if(e.morale)S.staff.forEach(s=>bumpStat(s,'morale',e.morale));
+ if(e.div){S.cash-=e.div;S.divPaid=(S.divPaid||0)+e.div;log(`Dividend paid: ${money(e.div)}.`)}
+ if(e.gm&&S.gm)Object.entries(e.gm).forEach(([k,d])=>{if(k==='wage'||k==='loyal')S.gm[k]=(S.gm[k]||0)+d;else S.gm[k]=clamp(S.gm[k]+d,1,20)});
+ if(e.gmGo&&S.gm){log(`${S.gm.name} has left as GM.`);S.gmPast=(S.gmPast||[]).concat(S.gm.name);S.gm=null;S.needGM=true}
+ if(e.fw){S.fw=S.fw||{};S.fw[e.fw.c]=e.fw.disc;S.trips.filter(t=>!t.result&&t.client===e.fw.c).forEach(t=>t.val=Math.round(t.val*(1-e.fw.disc)/100)*100);fwTrips(e.fw.c,2)}
+ if(e.sale)S.salePrice=e.sale;
+ if(e.price!=null)S.gmPrice=e.price;
+ if(e.safeAll){S.incMods=S.incMods||{};Object.keys(INVEST).forEach(k=>S.incMods[k]=(S.incMods[k]??1)*e.safeAll)}
+ if(e.flagd){S.dflags=S.dflags||{};S.dflags[e.flagd]=1}
+ if(e.strat){const x=STRAT.find(s=>s.id===e.strat);S.cash-=x.cost;S.strat[x.id]=true;log(`${x.n}: done.`)}
+ if(e.lease)S.lease=1;
+ if(e.chance){const w=R()<e.chance.p;out=applyM(w?e.chance.win:e.chance.lose)}
+ return out}
+function meetAnswer(j){const M=S.meeting,it=M&&M.items[M.i];if(!it||it.res!=null)return;it.res=j;it.out=applyM(it.opts[j].e);log(`Board: ${it.opts[j].l}.`)}
+function meetDone(){const M=S.meeting;S.meeting=null;if(S.salePrice){S.final='sold';S.screen='final';return}S.screen=S.needGM?'appoint':'game';S.view='office'}
+
+// ---------- scoring ----------
+function dirScore(){return (S.final==='sold'&&S.salePrice?S.salePrice:companyValue())+(S.divPaid||0)}
+function dirGrowth(){return S.dirStart?dirScore()/S.dirStart:1}
+function addJobsNow(pls,n){for(let i=0;i<n;i++){const wk=freeWeek(rint(S.week+4,SEASON_WEEKS-3));if(wk==null)break;S.trips.push(genJob(pick(pls),wk))}S.trips.sort((a,b)=>a.wk-b.wk)}
+
+// =====================================================================
 // UI
 // =====================================================================
 const $=s=>document.querySelector(s);const screen=$('#screen');
@@ -1810,7 +2027,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 const stat=(v,hi=14,lo=7)=>`<span class="stat ${v>=hi?'hi':v<=lo?'lo':''}">${v}</span>`;
 const cbar=v=>`<span class="cbar" title="Condition ${v}%"><i class="${v<45?'bad':v<70?'warn':''}" style="width:${v}%"></i></span>`;
 const bar=(v,w)=>`<div class="bar"><i class="${v<35?'bad':v<55?'warn':''}" style="width:${clamp(w??v)}%"></i></div>`;
-function faces(){screen.querySelectorAll('canvas[data-face]').forEach(c=>{const f=c.dataset.face;let face=f;if(f.startsWith('s:')){const s=staff(f.slice(2))||S.market.find(a=>a.id===f.slice(2));face=s?s.face:'colin'}portrait(c,face)})}
+function faces(){screen.querySelectorAll('canvas[data-face]').forEach(c=>{const f=c.dataset.face;let face=f;if(f==='gm')face=S&&S.gm?S.gm.face:'colin';else if(f.startsWith('gc:'))face=((S.gmCands||[])[+f.slice(3)]||{}).face||'colin';else if(f.startsWith('s:')){const s=staff(f.slice(2))||S.market.find(a=>a.id===f.slice(2));face=s?s.face:'colin'}portrait(c,face)})}
 const cv=(face)=>`<canvas data-face="${typeof face==='string'?face:''}"></canvas>`;
 const scv=s=>`<canvas data-face="s:${s.id}"></canvas>`;
 function talk(faceAttr,who,body){return `<div class="talk"><div><canvas data-face="${faceAttr}"></canvas><div class="who">${who}</div></div><div class="bub">${body}</div></div>`}
@@ -1826,16 +2043,16 @@ function hud(){const t=nextTrip(),rk=rank();
  <div><b>Cash</b><span style="color:${S.cash<0?'var(--red)':'inherit'}">${money(S.cash)}</span></div>
  <div><b>Revenue</b>${money(S.revenue)}${bar(0,S.revenue/S.target.rev*100)}<div class="fine">of ${money(S.target.rev)}</div></div>
  <div><b>Recordables</b><span style="color:${S.recordables>S.target.safety?'var(--red)':'inherit'}">${S.recordables} / ${S.target.safety}</span></div>
- ${boss}${next}</div>`}
+ ${boss}${S.rank===4?`<div><b>Company value</b>${money(dirScore())}<div class="fine">${dirGrowth().toFixed(2)}× what you took over</div></div>`:next}</div>`}
 
 // ---------- nav & routing ----------
 const VIEWS=[['office','Office'],['squad','Squad'],['season','Season'],['inbox','Inbox'],['train','Training'],['recruit','Recruit'],['board','Board']];
-const VIEW_LABEL={safety:'Safety',tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
+const VIEW_LABEL={ops:'Operations',safety:'Safety',tenders:'Tenders',office:'Office',squad:'Squad',season:'Season',inbox:'Inbox',train:'Training',recruit:'Recruit',facilities:'Facilities',strategy:'Strategy',board:'Board'};
 function nav(){if(!S||S.screen!=='game'){$('#nav').innerHTML=S&&S.screen==='trip'?'<p class="fine" style="padding:6px">On site. The office is closed.</p>':'';return}const tw=nextTrip()&&nextTrip().wk<=S.week;
  $('#nav').innerHTML=views().map(k=>`<button class="btn ${S.view===k?'on':''}" data-v="${k}">${VIEW_LABEL[k]}${k==='inbox'&&unread()?`<span class="n">${unread()}</span>`:''}</button>`).join('')+
- (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw?'<b>▶ Trip!</b>':'▶ Next week'}</button>`);
+ (S.week>SEASON_WEEKS?`<button class="btn" id="advance"><b>▶ ${S.rank<3?'New season':'Season review'}</b></button>`:`<button class="btn" id="advance">${tw&&!(S.rank===4&&S.gm&&!nextTrip().self)?'<b>▶ Trip!</b>':'▶ Next week'}</button>${S.rank===4?'<button class="btn" id="runon" title="Run weeks until something needs you">▶▶ Until needed</button>':''}`);
  $('#nav').querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{sfx.click();S.view=b.dataset.v;UI.sel=null;render()});
- $('#advance').onclick=()=>{sfx.click();advance()}}
+ $('#advance').onclick=()=>{sfx.click();advance()};const ro=$('#runon');if(ro)ro.onclick=()=>{sfx.click();runOn();if(S.screen==='end')sfx.bad();render()}}
 
 function render(){save();nav();
  if(S.screen==='trip')return tripView();
@@ -1846,9 +2063,12 @@ function render(){save();nav();
  if(S.screen==='testimonial')return testimonialView();
  if(S.screen==='branch')return branchView();
  if(S.screen==='yearend')return yearEndView();
- S.screen='game';nav();({office,squad,season,inbox,train,recruit,board,facilities,strategy,hr,tenders,proposal,safety,audit})[S.view]();faces()}
+ if(S.screen==='appoint')return appointView();
+ if(S.screen==='meeting')return meetingView();
+ S.screen='game';nav();({office,ops,squad,season,inbox,train,recruit,board,facilities,strategy,hr,tenders,proposal,safety,audit})[S.view]();faces()}
 
 function advance(){if(S.week>SEASON_WEEKS){if(S.rank<3){S.party=null;S.screen='yearend';return render()}S.screen='end';return render()}
+ if(S.rank===4){dirStep();if(S.screen==='end')sfx.bad();return render()}
  const t=nextTrip();if(t&&t.wk<=S.week){if(S.rank===0||isHSE()){beginTrip(t,autoPickTeam(t));UI.task=UI.job=null;S.screen='trip';return render()}S.screen='pick';const pre=t.prop?t.prop.team:((S.lastTeam||{})[t.client]||[]);S.pick=pre.filter(id=>avail(staff(id))).slice(0,t.need.field+t.need.admin);return render()}
  weekTick();
  if(S.rank>=3&&S.board<18&&S.week>10){S.screen='end';S.midSack=true;sfx.bad();return render()}
@@ -1861,7 +2081,7 @@ function title(){screen.innerHTML=`
  ${talk('leanne','Leanne<br>Mob Coordinator',"You must be the new admin. Desk's by the printer. The printer doesn't work. First trip goes out next week and nobody's done their paperwork.")}
  <div class="row" style="margin-top:14px"><button class="btn big" id="start">▶ NEW CAREER</button>${loadable()?'<button class="btn big" id="cont">CONTINUE</button>':''}<button class="btn" id="mute">Sound: ${muted?'OFF':'ON'}</button></div>
  <h3>The career</h3>
- <p class="fine">1. Office Admin: chase paperwork, book flights, beds, cars and freight.<br>2. Mobilisation Coordinator: pick the teams, run the mob and the field.<br>3. HSE Manager: every incident is yours.<br>4. General Manager: staff, hiring, HR, facilities, the board.<br>5. Director: grow the company, then hand it over.</p>
+ <p class="fine">1. Office Admin: chase paperwork, book flights, beds, cars and freight.<br>2. Mobilisation Coordinator: pick the teams, run the mob and the field.<br>3. HSE Manager: every incident is yours.<br>4. General Manager: staff, hiring, HR, facilities, the board.<br>5. Director: appoint a GM, face the board, grow the company, hand it over.</p>
  <p class="fine">Your boss reviews you as you go. Do well and you're promoted. Do badly and it's over.</p>`;
  faces();$('#nav').innerHTML='';
  $('#start').onclick=()=>{sfx.ring();START();seedInbox();S.screen='game';S.view='inbox';render()};
@@ -1877,10 +2097,11 @@ function office(){const t=nextTrip(),wk=S.week;
  screen.innerHTML=`${hud()}<h2>Office — season ${S.season}, week ${Math.min(wk,SEASON_WEEKS)}</h2><p class="fine">You're the ${rank().n}. ${isDept()?`You run ${DEPTS[S.dept].n}: win the work, deliver it inside the PO, get the reports out on time.`:ROLE_LINE[S.rank]}</p>
  <div class="cols"><div>
   <h3>This week</h3>
-  ${wk>SEASON_WEEKS?'<p>Season over. Board review is waiting.</p>':t&&t.wk<=wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week: ${t.days} days for ${CLIENTS[t.client]}. Hit Trip to ${S.rank===0?'start chasing paperwork':isHSE()?'send them out':'pick the team'}.</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}, ${t.days} days, needs ${t.need.field} field + ${t.need.admin} admin).</p>`:'<p>No trips left. Desk work until the season ends.</p>'}
+  ${wk>SEASON_WEEKS?'<p>Season over. Board review is waiting.</p>':t&&t.wk<=wk?`<p><span class="blink" style="color:var(--amber)">▶</span> <b>${esc(t.name)}</b> mobilises this week: ${t.days} days for ${CLIENTS[t.client]}. ${S.rank===4&&S.gm&&!t.self?`${esc(S.gm.name)} is sending a crew.`:`Hit Trip to ${S.rank===0?'start chasing paperwork':isHSE()?'send them out':'pick the team'}.`}</p>`:t?`<p>Next trip in ${t.wk-wk} week${t.wk-wk===1?'':'s'}: ${esc(t.name)} (${CLIENTS[t.client]}, ${t.days} days, needs ${t.need.field} field + ${t.need.admin} admin).</p>`:'<p>No trips left. Desk work until the season ends.</p>'}
   ${S.promise&&!S.promise.gone?`<p class="claim">Promised ${CLIENTS[S.promise.client]} that ${staff(S.promise.id)?staff(S.promise.id).name:'someone'} goes on their next job.</p>`:''}
   ${unread()?`<p>${unread()} unread in the inbox.</p>`:''}
   ${S.rank>=3?`<h3>Money</h3><p>Wages ${money(S.staff.reduce((a,s)=>a+s.wage,0))}/week. Desk billables this season ${money(S.desk)}. Facilities ${money(facUpkeep()+stratUpkeep())}/week.</p>`:''}
+  ${S.rank===4?`<p>Next board meeting: ${nextMeeting()?`week ${nextMeeting()}`:'next season'}.${S.gm?'':' No GM: you are running operations yourself.'}</p>`:''}
   <h3>Watch list</h3>${watch||'<p class="fine">Nobody on the watch list.</p>'}
  </div><div>
   <h3>Recent</h3><div class="log" style="border:0;margin:0;padding:0;max-height:320px">${S.log.slice(-12).reverse().map(l=>`<div>${esc(l)}</div>`).join('')||'<div>Season started.</div>'}</div>
@@ -1949,8 +2170,8 @@ function recruit(){
 // ---------- board ----------
 function board(){const done=S.trips.filter(t=>t.result).length;const happy=Object.values(S.clientRep).filter(v=>v>=50).length;
  const mood=S.board>=70?'Carry on.':S.board>=45?'The board has "questions".':S.board>=25?'The board has started using your full name.':'The board has a name in mind. It is not yours.';
- screen.innerHTML=`${hud()}<h2>Board — Colin's view</h2>
- ${talk('colin','Colin',`${done} of ${S.trips.length} trips done. Revenue ${money(S.revenue)} against ${money(S.target.rev)}. ${S.recordables} recordable${S.recordables===1?'':'s'}, limit ${S.target.safety}. ${happy} client${happy===1?'':'s'} still taking our calls. Cash ${money(S.cash)}.<br><br>${mood}`)}
+ const dir=S.rank===4;screen.innerHTML=`${hud()}<h2>Board — ${dir?"the Chair's":"Colin's"} view</h2>
+ ${talk(dir?'chair':'colin',dir?'The Chair':'Colin',`${done} of ${S.trips.length} trips done. Revenue ${money(S.revenue)} against ${money(S.target.rev)}. ${S.recordables} recordable${S.recordables===1?'':'s'}, limit ${S.target.safety}. ${happy} client${happy===1?'':'s'} still taking our calls. Cash ${money(S.cash)}.<br><br>${mood}${dir&&nextMeeting()?` Next meeting: week ${nextMeeting()}.`:''}`)}
  <h3>Targets</h3><div class="hud">
   <div><b>Revenue</b>${Math.round(S.revenue/S.target.rev*100)}%${bar(0,S.revenue/S.target.rev*100)}</div>
   <div><b>Safety</b>${S.recordables<=S.target.safety?'On track':'<span style="color:var(--red)">Over</span>'}</div>
@@ -2060,7 +2281,7 @@ function endView(){$('#nav').innerHTML='';
  const v=seasonVerdict();
  const why=[v.revOK?'Revenue: met.':`Revenue: ${money(S.revenue)} of ${money(S.target.rev)}.`,v.safeOK?'Safety: met.':`Safety: ${S.recordables} recordables, limit ${S.target.safety}.`,v.cliOK?'Clients: met.':`Clients: ${v.happy} happy, needed ${S.target.clients}.`,S.cash<-20000?`Cash: ${money(S.cash)}. The bank rang.`:''].filter(Boolean).join('<br>');
  const promo=S.rank===3&&v.pass&&(S.board>=80||(S.passes||0)>=1),handover=S.rank===4&&(S.dirSeasons||0)>=1&&!v.sacked;
- const line=v.sacked?'The board has made its decision.':handover?'Two seasons as Director. Time to hand over.':promo?'The board wants you on it. Director.':v.pass?"Targets met. Which means they've already raised next year's.":"You're on probation. Miss again next season and you're out.";
+ const line=v.sacked?'The board has made its decision.':handover?'Two seasons as Director. Time to hand over.':promo?'The board wants you on it. Director.':S.rank===4?(v.pass?`Board confidence ${Math.round(S.board)}%. The targets feed that number; the number is what counts. Carry on.`:`Board confidence ${Math.round(S.board)}%. You're on notice. Below 45% again next season and you're out.`):v.pass?"Targets met. Which means they've already raised next year's.":"You're on probation. Miss again next season and you're out.";
  screen.innerHTML=`${hud()}<h1>${v.title}</h1>${talk(S.rank===4?'chair':'colin',S.rank===4?'The Chair':'Colin',`${why}<br><br>${line}`)}
  <h3>Season log</h3><div class="log">${S.log.slice(-20).map(l=>`<div>${esc(l)}</div>`).join('')}</div>
  <div class="tbar">${v.sacked?'<button class="btn big" id="sacked">▶ CLEAR YOUR DESK</button>':testimonialDue()&&!S.testSeen?'<button class="btn big" id="test">▶ RUSTY WANTS A WORD</button>':handover?'<button class="btn big" id="hand">▶ HAND OVER THE COMPANY</button>':`<button class="btn big" id="next">▶ ${promo?'BECOME DIRECTOR':`START SEASON ${S.season+1}`}</button>`}</div>`;faces();
@@ -2068,7 +2289,7 @@ function endView(){$('#nav').innerHTML='';
  const a=$('#sacked');if(a)a.onclick=()=>{S.final='sacked';S.screen='final';render()};
  const tb=$('#test');if(tb)tb.onclick=()=>{S.screen='testimonial';render()};
  const hd=$('#hand');if(hd)hd.onclick=()=>{S.lastRevenue=S.revenue;S.final='retire';S.screen='final';render()};
- const nx=$('#next');if(nx)nx.onclick=()=>{sfx.ring();if(v.pass)S.passes=(S.passes||0)+1;newSeason();if(promo)promote();S.testSeen=false;S.screen='game';S.view=promo?'inbox':'office';render()};
+ const nx=$('#next');if(nx)nx.onclick=()=>{sfx.ring();if(v.pass)S.passes=(S.passes||0)+1;newSeason();if(promo)promote();S.testSeen=false;S.screen=S.needGM?'appoint':'game';S.view=promo?'inbox':'office';render()};
  status('Season over.')}
 
 function testimonialView(){const r=staff('rusty');$('#nav').innerHTML='';
@@ -2089,7 +2310,7 @@ window.claude?.hot?.ready?window.claude.hot.ready(d=>{if(d&&d.screen&&d.screen!=
 // =====================================================================
 // UI — facilities, HR, strategy, bookings, reviews, career ending
 // =====================================================================
-const ROLE_LINE=["Leanne picks the teams. You chase everyone's paperwork and book the travel.","You pick the teams, run the mob, and you're on the radio in the field.","The coordinator runs the trips. Every incident comes to you, and you hold the safety budget.","The whole office is yours: staff, hiring, HR, facilities, and the board's targets.","The whole company is yours. Grow it, then hand it over."];
+const ROLE_LINE=["Leanne picks the teams. You chase everyone's paperwork and book the travel.","You pick the teams, run the mob, and you're on the radio in the field.","The coordinator runs the trips. Every incident comes to you, and you hold the safety budget.","The whole office is yours: staff, hiring, HR, facilities, and the board's targets.","Your GM runs the crews and the tenders. You run the board, the money and the big moves."];
 const pressed='background:#d8d8d8;border-color:var(--win-black) var(--win-light) var(--win-light) var(--win-black)';
 
 // ---------- bookings ----------
@@ -2117,14 +2338,6 @@ function facilities(){const hse=isHSE();const list=FAC.filter(f=>!hse||HSE_FAC.i
  screen.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const m=buyFac(b.dataset.buy);UI.msg=m;(/declined/.test(m)?sfx.bad:sfx.good)();render()});
  screen.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>{sfx.meh();cancelFac(b.dataset.cancel);render()});
  status('Facilities.')}
-
-// ---------- strategy (Director) ----------
-function strategy(){const v=companyValue();
- screen.innerHTML=`${hud()}<h2>Strategy</h2>${talk('chair','The Chair',`The company is worth about <b>${money(v)}</b> today. That number is how the board will judge you when you hand over. ${S.dirSeasons>=1?'This is your last season.':'Two seasons.'}`)}
- ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}
- ${STRAT.map(x=>`<div class="mail"><b>${x.n}</b> · ${money(x.cost)}${x.up?` + ${money(x.up)}/wk`:''}<div class="fine">${x.d}</div><div class="row" style="margin-top:6px">${S.strat[x.id]?'<span class="claim">Done.</span>':`<button class="btn sm" data-st="${x.id}">Do it</button><span class="fine">Board at 60% or more.</span>`}</div></div>`).join('')}
- <h3>What the value counts</h3><p class="fine">Cash, 60% of what you've spent on facilities, 80% of strategic moves, client relations, headcount, and last season's revenue.</p>`;UI.msg=null;faces();
- screen.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{const m=buyStrat(b.dataset.st);UI.msg=m;(/want/.test(m)?sfx.bad:sfx.good)();render()});status('Strategy.')}
 
 // ---------- HR file ----------
 const HSE_HR=['investigate','wait','showcause','support','nosupport','summary','consider','lastchance','drop'];
@@ -2155,14 +2368,15 @@ function reviewView(){$('#nav').innerHTML='';const o=reviewOutcome(),rk=rank();
 // ---------- career ending ----------
 function finalView(){$('#nav').innerHTML='';S.over=true;save();const kind=S.final;const v=companyValue();
  let title,body;
- if(kind==='retire'){title=v>=1500000?'CHAIR OF THE BOARD':v>=900000?'RETIRED WITH A BOAT':'RETIRED TO CONSULTING';
-  body=v>=1500000?`You handed over a company worth ${money(v)}. The board has asked you to chair it. Colin sends a card with a goanna on it.`:v>=900000?`${money(v)} on handover. The boat is called Mobilisation. It has never left on time.`:`${money(v)} on handover. You now consult to the company you ran, at a higher day rate.`}
+ if(kind==='retire'||kind==='sold'){const g=dirGrowth(),sc=dirScore(),how=kind==='sold'?`You sold it for ${money(S.salePrice)}`:`You handed over a company worth ${money(v)}`,div=S.divPaid?`, plus ${money(S.divPaid)} in dividends along the way`:'';
+  title=g>=2.2?'CHAIR OF THE BOARD':g>=1.6?'RETIRED WITH A BOAT':g>=1.2?'RETIRED TO CONSULTING':'QUIETLY REPLACED';
+  body=`${how}${div}. That's ${g.toFixed(2)}× what it was worth when you took over. `+(g>=2.2?"The board has asked you to chair it. Colin sends a card with a goanna on it.":g>=1.6?"The boat is called Mobilisation. It has never left on time.":g>=1.2?"You now consult to the company you ran, at a higher day rate.":"The board thanked you for your service in a two-line email. The second line was your final pay date.")}
  else{title='CAREER OVER';body=`${rank().n}, season ${S.season}. It ended here. Rusty says it used to be worse.`}
  const rusty=staff('rusty')?'Rusty is still here, still telling the goanna story.':S.rustyRetired?'Rusty retired. Trap line 3 still has his name on it, somewhere.':'Rusty left along the way. He took the goanna story with him.';
- screen.innerHTML=`<h1>${title}</h1>${talk(kind==='retire'?'chair':'deb',kind==='retire'?'The Chair':'Deb, HR',esc(body))}
+ screen.innerHTML=`<h1>${title}</h1>${talk(kind==='retire'||kind==='sold'?'chair':'deb',kind==='retire'||kind==='sold'?'The Chair':'Deb, HR',esc(body))}
  <h3>Career</h3><div class="log" style="max-height:none"><div>S1 W1: Office Admin, desk by the printer.</div>${S.career.map(c=>`<div>${esc(c.at)}: ${RANKS[c.rank].n}.</div>`).join('')}</div>
- <div class="hud"><div><b>Trips</b>${S.stats.trips}</div><div><b>Recordables</b>${S.stats.rec}</div><div><b>Hired</b>${S.stats.hired}</div><div><b>Dismissed</b>${S.stats.fired}</div>${S.rank>=3?`<div><b>Company value</b>${money(v)}</div>`:''}</div>
- <p>${rusty}</p><div class="tbar"><button class="btn big" id="again">▶ NEW CAREER</button></div>`;faces();(kind==='retire'?sfx.good:sfx.bad)();
+ <div class="hud"><div><b>Trips</b>${S.stats.trips}</div><div><b>Recordables</b>${S.stats.rec}</div><div><b>Hired</b>${S.stats.hired}</div><div><b>Dismissed</b>${S.stats.fired}</div>${S.rank>=3?`<div><b>${kind==='sold'?'Sale price':'Company value'}</b>${money(kind==='sold'?S.salePrice:v)}</div>`:''}</div>
+ <p>${rusty}</p><div class="tbar"><button class="btn big" id="again">▶ NEW CAREER</button></div>`;faces();(kind==='retire'||kind==='sold'?sfx.good:sfx.bad)();
  $('#again').onclick=()=>{START();seedInbox();S.screen='game';render()};status('The end.')}
 
 // =====================================================================
@@ -2261,7 +2475,62 @@ function yearEndView(){$('#nav').innerHTML='';const y=yearSummary(),rk=rank();
  <h3>Christmas party. Friday, the depot.</h3>${S.party!=null?`<div class="res">${esc(PARTY[S.party].r)}</div><div class="tbar"><button class="btn big" id="ny">▶ START SEASON ${S.season+1}</button></div>`:`<div class="opts">${PARTY.map((x,i)=>`<button class="btn" data-pty="${i}">${i+1}. ${esc(x.l)}</button>`).join('')}</div>`}`;faces();
  screen.querySelectorAll('[data-pty]').forEach(b=>b.onclick=()=>{const x=PARTY[+b.dataset.pty];S.party=+b.dataset.pty;S.board=clamp(S.board+x.b);if(x.m)S.staff.forEach(s=>bumpStat(s,'morale',x.m));sfx.good();render()});
  const ny=$('#ny');if(ny)ny.onclick=()=>{const b=S.board;newSeason();S.board=b;S.party=null;S.screen='game';S.view='inbox';sfx.ring();render()};status('Year end.')}
-</script>
 
-</body>
-</html>
+// =====================================================================
+// DIRECTOR UI — appoint, board meeting, operations, strategy
+// =====================================================================
+const gmStats=g=>`<div class="hud"><div><b>Operations</b>${stat(g.ops)}${bar(g.ops*5)}</div><div><b>Sales</b>${stat(g.sales)}${bar(g.sales*5)}</div><div><b>Safety</b>${stat(g.safety)}${bar(g.safety*5)}</div><div><b>People</b>${stat(g.people)}${bar(g.people*5)}</div><div><b>Wage</b>${money(g.wage)}/wk</div></div>`;
+
+function appointView(){$('#nav').innerHTML='';if(!S.gmCands)S.gmCands=gmCands();const C=S.gmCands;
+ const again=(S.gmPast||[]).length>0;
+ screen.innerHTML=`${hud()}<h1>APPOINT A GENERAL MANAGER</h1>${talk('chair','The Chair',again?"We need a GM again. Try to pick one who stays.":"First decision, Director: who runs the place day to day? The GM sends the crews, writes the tenders, renews contracts and hires to fill gaps. You run the board, the money and the big moves. Pick well. You can replace them, but it costs.")}
+ <p class="fine">Operations: how well trips run. Sales: tender quality and negotiating. Safety: how often things go wrong. People: staff morale.</p>
+ ${C.map((c,i)=>`<div class="mail"><div class="row"><canvas data-face="gc:${i}"></canvas><div><b>${esc(c.name)}</b><div class="fine">From ${esc(c.from)}</div></div></div>${gmStats(c)}<p class="fine">${esc(c.quirk)}</p><div class="row"><button class="btn" data-gm="${i}">Appoint ${esc(c.name.split(' ')[0])}</button></div></div>`).join('')}
+ <div class="mail"><b>Act as GM yourself</b><p class="fine">No GM and no GM wage. You pick every team, run every trip and handle every tender, like last season, on top of the board. More work, more control.</p><div class="row"><button class="btn" data-gm="self">Do it myself</button></div></div>`;faces();
+ screen.querySelectorAll('[data-gm]').forEach(b=>b.onclick=()=>{sfx.ring();appointGM(b.dataset.gm);S.screen='game';S.view=S.gm?'inbox':'office';render()});status('Appoint a GM.')}
+
+function meetingView(){$('#nav').innerHTML='';const M=S.meeting;if(!M){S.screen='game';return render()}const it=M.items[M.i],v=dirScore();
+ const kpi=`<div class="hud"><div><b>Company value</b>${money(v)}<div class="fine">${dirGrowth().toFixed(2)}× start</div></div><div><b>Revenue</b>${money(S.revenue)}${bar(0,S.revenue/S.target.rev*100)}<div class="fine">of ${money(S.target.rev)}</div></div><div><b>Recordables</b>${S.recordables} / ${S.target.safety}</div><div><b>Cash</b>${money(S.cash)}${S.loan?`<div class="fine">loan ${money(S.loan)}</div>`:''}</div><div><b>Board</b>${Math.round(S.board)}%${bar(S.board)}</div></div>`;
+ if(!it){const db=Math.round(S.board)-M.b0,dv=v-M.v0;
+  screen.innerHTML=`<h1>BOARD MEETING</h1><h2>Season ${S.season}, week ${M.wk}: closed</h2>${kpi}
+  ${talk('chair','The Chair',`${M.items.map(x=>esc(x.out)).join('<br>')}<br><br>Board confidence ${db>=0?'+':''}${db}. Value ${dv>=0?'+':'-'}${money(Math.abs(dv)).replace('-','')}. ${S.salePrice?'Congratulations. And goodbye.':S.needGM?'Next: a new GM.':'Same time next quarter.'}`)}
+  <div class="tbar"><button class="btn big" id="mdone">${S.salePrice?'▶ SIGN THE SALE':S.needGM?'▶ APPOINT A GM':'▶ BACK TO THE OFFICE'}</button></div>`;faces();
+  $('#mdone').onclick=()=>{sfx.click();meetDone();render()};return status('Board meeting.')}
+ screen.innerHTML=`<h1>BOARD MEETING</h1><h2>Season ${S.season}, week ${M.wk} · item ${M.i+1} of ${M.items.length}</h2>${M.i===0?kpi:''}${talk('chair','The Chair',esc(it.q))}
+ ${it.res==null?`<div class="opts">${it.opts.map((o,j)=>`<button class="btn" data-m="${j}">${j+1}. ${esc(o.l)}</button>`).join('')}</div>`:`<div class="res">${esc(it.out)}</div><div class="tbar"><button class="btn big" id="mnext">▶ ${M.i+1<M.items.length?'NEXT ITEM':'CLOSE THE MEETING'}</button></div>`}`;faces();
+ screen.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{sfx.click();meetAnswer(+b.dataset.m);render()});
+ const nx=$('#mnext');if(nx)nx.onclick=()=>{sfx.click();M.i++;render()};status('Board meeting.')}
+
+function ops(){const g=S.gm,up=S.trips.filter(t=>!t.result).slice(0,10),done=S.trips.filter(t=>t.result&&!t.result.cancelled).slice(-6).reverse();
+ const tw=S.trips.filter(t=>t.result&&!t.result.cancelled);const st=tw.length?avg(tw.map(t=>t.result.stars)).toFixed(1):'—';
+ const won=(S.tenders||[]).filter(td=>td.done&&td.sent).length,wins=S.trips.filter(t=>t.won).length;
+ screen.innerHTML=`${hud()}<h2>Operations</h2>
+ ${g?talk('gm',`${esc(g.name)}<br>General Manager`,`${tw.length} trips this season at ${st}★ on average. ${wins} of ${won} tenders won. Pricing: ${S.gmPrice==='volume'?'sharp, for volume':S.gmPrice==='margin'?'premium where we can':'case by case'}.`)+gmStats(g)+`<p class="fine">${esc(g.quirk)} Loyalty: ${g.loyal>=60?'solid':g.loyal>=40?'fine':'<span style="color:var(--red)">wavering</span>'}.</p>`
+  :talk('chair','The Chair','No GM. You are running operations yourself: every team, every trip, every tender.')}
+ <h3>Coming up</h3><div class="twrap"><table><tr><th>Wk</th><th>Client</th><th>Trip</th><th>Worth</th><th>Run by</th></tr>
+ ${up.map(t=>`<tr><td>${t.wk}</td><td class="fine">${CLIENTS[t.client]}</td><td>${esc(t.name)}${t.fw?' <span class="tag">panel</span>':''}</td><td>${money(t.val)}</td><td>${g?`<button class="btn sm" data-self="${t.id}">${t.self?'You':'GM'}</button>`:'You'}</td></tr>`).join('')||'<tr><td colspan="5" class="fine">Nothing left this season.</td></tr>'}</table></div>
+ ${g?'<p class="fine">Click GM/You to take a trip yourself. You pick the team and run it when it is due, like the old days.</p>':''}
+ <h3>Recent</h3>${done.map(t=>`<p>· ${esc(t.name)}: ${'★'.repeat(t.result.stars)}${'☆'.repeat(5-t.result.stars)}, ${t.result.rec} rec, paid ${money(t.result.pay)}</p>`).join('')||'<p class="fine">No trips yet this season.</p>'}
+ <div class="row" style="margin-top:10px">${g?`<button class="btn" id="replacegm">Replace ${esc(g.name.split(' ')[0])} (${money(g.wage*8)} payout)</button>`:'<button class="btn" id="hiregm">Appoint a GM</button>'}</div>`;faces();
+ screen.querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>{sfx.click();const t=tripById(b.dataset.self);if(t)t.self=!t.self;render()});
+ const rp=$('#replacegm');if(rp)rp.onclick=()=>{sfx.meh();S.cash-=g.wage*8;S.board=clamp(S.board-2);S.gmPast=(S.gmPast||[]).concat(g.name);log(`${g.name} replaced as GM.`);S.gm=null;S.needGM=true;S.screen='appoint';render()};
+ const hg=$('#hiregm');if(hg)hg.onclick=()=>{sfx.click();S.needGM=true;S.gmCands=null;S.screen='appoint';render()};status('Operations.')}
+
+function strategy(){const v=companyValue(),g=dirGrowth();
+ const card=x=>{const done=S.strat[x.id],cost=x.id==='othermob'?otherPrice():x.cost;let act;
+  if(done)act='<span class="claim">Done.</span>';
+  else if(x.id==='othermob'&&S.dd&&S.dd.walked)act='<span class="fine">You walked away.</span>';
+  else if(x.id==='othermob'&&!S.dd)act=`<button class="btn sm" data-dd="1">Due diligence first ($20,000)</button><button class="btn sm" data-st="othermob">Buy now, no questions</button>`;
+  else if(x.id==='othermob')act=`<button class="btn sm" data-st="othermob">Buy at ${money(cost)}</button><button class="btn sm" data-walk="1">Walk away</button>`;
+  else act=`<button class="btn sm" data-st="${x.id}">Do it</button>`;
+  return `<div class="mail"><b>${x.n}</b> · ${money(cost)}${x.up>0?` + ${money(x.up)}/wk`:''}<div class="fine">${x.d}</div>${x.id==='othermob'&&S.dd&&S.dd.seen&&!done?`<div class="fine"><b>Due diligence:</b> ${S.dd.i>=0?esc(DD_LIAB[S.dd.i].t):'clean.'}</div>`:''}<div class="row" style="margin-top:6px">${act}</div></div>`};
+ screen.innerHTML=`${hud()}<h2>Strategy</h2>${talk('chair','The Chair',`The company is worth about <b>${money(v)}</b>${S.divPaid?`, and we've paid out ${money(S.divPaid)} in dividends`:''}. That's ${g.toFixed(2)}× what it was when you took over. ${S.dirSeasons>=1?'This is your last season.':'You have two seasons.'} Big moves need the board at 60%. The bank lends up to half.`)}
+ ${UI.msg?`<div class="res">${esc(UI.msg)}</div>`:''}
+ ${S.loan?`<div class="mail"><b>Bank loan</b> · ${money(S.loan)} at about 10% a year (${money(S.loan*.0019)}/wk).<div class="row" style="margin-top:6px">${S.cash>=50000?'<button class="btn sm" id="repay">Repay $50,000</button>':'<span class="fine">Need $50,000 cash to repay.</span>'}</div></div>`:''}
+ ${STRAT.map(card).join('')}
+ <h3>What the value counts</h3><p class="fine">Cash minus debt. 60% of facility spend. What you paid for strategic moves. Client relations. Headcount. 60% of last season's revenue. Dividends paid count towards your return.</p>`;UI.msg=null;faces();
+ screen.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{const m=buyStrat(b.dataset.st);UI.msg=m;(/want|lend|need/.test(m)?sfx.bad:sfx.good)();render()});
+ const dd=screen.querySelector('[data-dd]');if(dd)dd.onclick=()=>{UI.msg=dueDiligence();sfx.meh();render()};
+ const wk=screen.querySelector('[data-walk]');if(wk)wk.onclick=()=>{S.dd.walked=true;UI.msg='You walked away. The Other Mob will be at the next industry dinner, being polite.';sfx.meh();render()};
+ const rp=$('#repay');if(rp)rp.onclick=()=>{sfx.click();repayLoan();render()};status('Strategy.')}
+</script>
