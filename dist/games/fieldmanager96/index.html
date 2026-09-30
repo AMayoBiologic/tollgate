@@ -197,24 +197,24 @@ const TRAIT_INFO={
 };
 
 // ---------- clients & trips ----------
-const CLIENTS={newm:'Newmont-ish',s32:'South of 32',rio:'Big Red Iron',dept:'The Department',lith:'Lithium Startup'};
+const CLIENTS={newm:'Wattle Gold',s32:'Jarrah Alumina',rio:'Spinifex Iron',dept:'The Department',lith:'Salt Lake Lithium'};
 // val per person-day ~ $2,600 (includes reporting). hazard 0-3 lifts incident odds.
 const TRIPS0=[
  {wk:2, client:'rio', name:'Baseline fauna, Pilbara',       type:'fauna', days:5, need:{field:3,admin:1}, hazard:2},
- {wk:5, client:'newm',name:'Targeted flora, Boddington',    type:'flora', days:4, need:{field:2,admin:1}, hazard:0},
+ {wk:5, client:'newm',name:'Targeted flora, Darling Range',    type:'flora', days:4, need:{field:2,admin:1}, hazard:0},
  {wk:8, client:'lith',name:'Seed collection, Goldfields',   type:'seed',  days:6, need:{field:3,admin:0}, hazard:2},
- {wk:11,client:'s32', name:'Bat & nocturnal, Worsley',      type:'bats',  days:5, need:{field:3,admin:1}, hazard:1},
+ {wk:11,client:'s32', name:'Bat & nocturnal, South West',      type:'bats',  days:5, need:{field:3,admin:1}, hazard:1},
  {wk:14,client:'dept',name:'Threatened species, Kimberley', type:'fauna', days:8, need:{field:4,admin:1}, hazard:3},
  {wk:18,client:'rio', name:'Trapping, Pilbara wet season',  type:'fauna', days:6, need:{field:4,admin:1}, hazard:3},
- {wk:22,client:'newm',name:'Weed survey, Boddington',       type:'flora', days:3, need:{field:2,admin:0}, hazard:0},
+ {wk:22,client:'newm',name:'Weed survey, Darling Range',       type:'flora', days:3, need:{field:2,admin:0}, hazard:0},
  {wk:26,client:'lith',name:'Subterranean fauna, Goldfields',type:'subs',  days:7, need:{field:3,admin:2}, hazard:2},
- {wk:30,client:'s32', name:'Rehab monitoring, Worsley',     type:'flora', days:4, need:{field:2,admin:1}, hazard:1},
+ {wk:30,client:'s32', name:'Rehab monitoring, South West',     type:'flora', days:4, need:{field:2,admin:1}, hazard:1},
  {wk:34,client:'dept',name:'Marine turtles, Ningaloo',      type:'marine',days:9, need:{field:4,admin:1}, hazard:2},
  {wk:38,client:'rio', name:'Dry season fauna, Pilbara',     type:'fauna', days:6, need:{field:4,admin:1}, hazard:2},
- {wk:42,client:'newm',name:'Year-end audit, Boddington',    type:'flora', days:2, need:{field:1,admin:2}, hazard:0},
+ {wk:42,client:'newm',name:'Year-end audit, Darling Range',    type:'flora', days:2, need:{field:1,admin:2}, hazard:0},
 ];
 const TRIP_GEN={
- places:[['Pilbara','rio',2],['Pilbara','s32',2],['Boddington','newm',0],['Goldfields','lith',2],['Worsley','s32',1],['Kimberley','dept',3],['Ningaloo','dept',2],['Mid West','lith',1],['Great Western Woodlands','dept',1],['Wheatbelt','newm',1]],
+ places:[['Pilbara','rio',2],['Pilbara','s32',2],['Darling Range','newm',0],['Goldfields','lith',2],['South West','s32',1],['Kimberley','dept',3],['Ningaloo','dept',2],['Mid West','lith',1],['Great Western Woodlands','dept',1],['Wheatbelt','newm',1]],
  kinds:[
   {type:'fauna',names:['Baseline fauna','Targeted fauna','Trapping','Dry season fauna','Wet season fauna'],days:[5,8],field:[3,4],admin:[1,1]},
   {type:'flora',names:['Targeted flora','Vegetation mapping','Weed survey','Rehab monitoring'],days:[3,6],field:[2,3],admin:[0,1]},
